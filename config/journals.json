@@ -1,0 +1,121 @@
+{
+  "journals": [
+    {
+      "name": "IEEE Transactions on Medical Imaging",
+      "issn": "0278-0062",
+      "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=42",
+      "rss_url": "https://ieeexplore.ieee.org/rss/TOC42.XML",
+      "publisher_type": "ieee",
+      "scraper_class": "IEEERSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Nature Machine Intelligence",
+      "issn": "2522-5839",
+      "url": "https://www.nature.com/natmachintell/",
+      "rss_url": "https://www.nature.com/natmachintell.rss",
+      "publisher_type": "nature",
+      "scraper_class": "RSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "npj Digital Medicine",
+      "issn": "2398-6352",
+      "url": "https://www.nature.com/npjdigitalmed/",
+      "rss_url": "https://www.nature.com/npjdigitalmed.rss",
+      "publisher_type": "nature",
+      "scraper_class": "RSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Annual Review of Biomedical Data Science",
+      "issn": "2574-3414",
+      "url": "https://www.annualreviews.org/content/journals/biodatasci",
+      "rss_url": "https://www.annualreviews.org/action/showFeed?type=etoc&feed=rss&jc=biodatasci",
+      "publisher_type": "annual_reviews",
+      "scraper_class": "RSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Journal of Biomedical Informatics",
+      "issn": "1532-0464",
+      "url": "https://www.sciencedirect.com/journal/journal-of-biomedical-informatics",
+      "rss_url": null,
+      "publisher_type": "elsevier",
+      "scraper_class": "ElsevierScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "IEEE Journal of Biomedical and Health Informatics",
+      "issn": "2168-2194",
+      "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=6221020",
+      "rss_url": "https://ieeexplore.ieee.org/rss/TOC6221020.XML",
+      "publisher_type": "ieee",
+      "scraper_class": "IEEERSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "IEEE Transactions on Medical Robotics and Bionics",
+      "issn": "2576-3202",
+      "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8253409",
+      "rss_url": "https://ieeexplore.ieee.org/rss/TOC8253409.XML",
+      "publisher_type": "ieee",
+      "scraper_class": "IEEERSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "IEEE Transactions on Robotics",
+      "issn": "1552-3098",
+      "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8860",
+      "rss_url": "https://ieeexplore.ieee.org/rss/TOC8860.XML",
+      "publisher_type": "ieee",
+      "scraper_class": "IEEERSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "IEEE Transactions on Automation Science and Engineering",
+      "issn": "1545-5955",
+      "url": "https://ieeexplore.ieee.org/xpl/RecentIssue.jsp?punumber=8856",
+      "rss_url": "https://ieeexplore.ieee.org/rss/TOC8856.XML",
+      "publisher_type": "ieee",
+      "scraper_class": "IEEERSSScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Diseases of the Colon and Rectum",
+      "issn": "0012-3706",
+      "url": "https://journals.lww.com/dcrjournal",
+      "rss_url": "https://journals.lww.com/dcrjournal/_layouts/15/OAKS.Journals/feed.aspx?FeedType=PublishAheadofPrint&year=9900&issue=00000",
+      "publisher_type": "lww",
+      "scraper_class": "RSSScraper",
+      "category": "CRC"
+    },
+    {
+      "name": "Colorectal Disease",
+      "issn": "1462-8910",
+      "url": "https://onlinelibrary.wiley.com/journal/14631318",
+      "rss_url": "https://onlinelibrary.wiley.com/feed/14631318/most-recent",
+      "publisher_type": "wiley",
+      "scraper_class": "RSSScraper",
+      "category": "CRC"
+    },
+    {
+      "name": "Techniques in Coloproctology",
+      "issn": "1123-6337",
+      "url": "https://link.springer.com/journal/10151",
+      "rss_url": "https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10151&channel-name=Techniques%20in%20Coloproctology",
+      "publisher_type": "springer",
+      "scraper_class": "RSSScraper",
+      "category": "CRC"
+    },
+    {
+      "name": "International Journal of Colorectal Disease",
+      "issn": "0179-1958",
+      "url": "https://link.springer.com/journal/384",
+      "rss_url": "https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=384&channel-name=International%20Journal%20of%20Colorectal%20Disease",
+      "publisher_type": "springer",
+      "scraper_class": "RSSScraper",
+      "category": "CRC"
+    }
+  ]
+}
