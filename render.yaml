@@ -1,0 +1,22 @@
+services:
+  # Cron Job: 每天早上 8:00 執行期刊追蹤
+  - type: cron
+    name: journal-tracker-daily
+    env: python
+    plan: free
+    schedule: "0 0 * * *"  # 每天 UTC 0:00（台灣時間 8:00）
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_API_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
