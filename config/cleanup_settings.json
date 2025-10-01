@@ -1,0 +1,36 @@
+{
+  "description": "資料庫清理設定檔",
+  "cleanup": {
+    "enabled": true,
+    "max_articles": 100,
+    "max_notifications": 500,
+    "days_to_keep": 90,
+    "description": {
+      "enabled": "是否啟用自動清理",
+      "max_articles": "最多保留的文章數量",
+      "max_notifications": "最多保留的通知記錄數量",
+      "days_to_keep": "保留天數（當文章數少於 max_articles 時使用）"
+    }
+  },
+  "examples": {
+    "small_database": {
+      "max_articles": 50,
+      "max_notifications": 200,
+      "days_to_keep": 30,
+      "description": "適合小型使用者，節省空間"
+    },
+    "medium_database": {
+      "max_articles": 100,
+      "max_notifications": 500,
+      "days_to_keep": 90,
+      "description": "預設設定，平衡效能與空間"
+    },
+    "large_database": {
+      "max_articles": 200,
+      "max_notifications": 1000,
+      "days_to_keep": 180,
+      "description": "適合需要長期保存資料的使用者"
+    }
+  }
+}
+
