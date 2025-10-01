@@ -268,3 +268,142 @@ class SupabaseClient:
             logger.debug(f"記錄通知狀態: {status}")
         except Exception as e:
             logger.error(f"記錄通知失敗: {e}")
+    
+    def cleanup_old_data(
+        self, 
+        max_articles: int = 100, 
+        max_notifications: int = 500,
+        days_to_keep: int = 90
+    ) -> Dict[str, int]:
+        """
+        清理舊資料，避免資料庫無限增長。
+        
+        策略：
+        1. 文章表（articles）：
+           - 優先按數量限制：只保留最新的 max_articles 筆
+           - 如果文章數少於 max_articles，則保留 days_to_keep 天內的所有文章
+        
+        2. 通知記錄表（notifications）：
+           - 只保留最近 max_notifications 筆記錄
+           - 或保留 days_to_keep 天內的記錄
+        
+        Args:
+            max_articles: 最多保留的文章數量（預設 100）
+            max_notifications: 最多保留的通知記錄數量（預設 500）
+            days_to_keep: 保留天數（預設 90 天）
+        
+        Returns:
+            Dict[str, int]: 清理結果 {'articles_deleted': N, 'notifications_deleted': M}
+        """
+        result = {
+            'articles_deleted': 0,
+            'notifications_deleted': 0
+        }
+        
+        try:
+            # ===== 1. 清理文章表 =====
+            logger.info(f"開始清理文章表（保留最新 {max_articles} 筆或 {days_to_keep} 天內）")
+            
+            # 取得文章總數
+            count_response = self.client.table("articles").select(
+                "id", count="exact"
+            ).execute()
+            
+            total_articles = count_response.count if hasattr(count_response, 'count') else len(count_response.data)
+            logger.info(f"  目前文章總數: {total_articles}")
+            
+            if total_articles > max_articles:
+                # 取得要保留的文章 ID（最新的 max_articles 筆）
+                keep_response = self.client.table("articles").select("id").order(
+                    "discovered_at", desc=True
+                ).limit(max_articles).execute()
+                
+                keep_ids = [article['id'] for article in keep_response.data]
+                
+                # 刪除不在保留清單中的文章
+                if keep_ids:
+                    # 使用 not.in 運算符
+                    delete_response = self.client.table("articles").delete().not_(
+                        "id", "in", f"({','.join(keep_ids)})"
+                    ).execute()
+                    
+                    deleted_count = len(delete_response.data) if delete_response.data else 0
+                    result['articles_deleted'] = deleted_count
+                    logger.info(f"  ✓ 刪除了 {deleted_count} 篇舊文章（保留最新 {max_articles} 篇）")
+            else:
+                # 如果文章數少於 max_articles，則按時間刪除
+                cutoff_date = (datetime.now() - timedelta(days=days_to_keep)).isoformat()
+                delete_response = self.client.table("articles").delete().lt(
+                    "discovered_at", cutoff_date
+                ).execute()
+                
+                deleted_count = len(delete_response.data) if delete_response.data else 0
+                result['articles_deleted'] = deleted_count
+                if deleted_count > 0:
+                    logger.info(f"  ✓ 刪除了 {deleted_count} 篇超過 {days_to_keep} 天的舊文章")
+                else:
+                    logger.info(f"  ✓ 沒有需要刪除的舊文章")
+            
+            # ===== 2. 清理通知記錄表 =====
+            logger.info(f"開始清理通知記錄表（保留最新 {max_notifications} 筆）")
+            
+            # 取得通知記錄總數
+            count_response = self.client.table("notifications").select(
+                "id", count="exact"
+            ).execute()
+            
+            total_notifications = count_response.count if hasattr(count_response, 'count') else len(count_response.data)
+            logger.info(f"  目前通知記錄總數: {total_notifications}")
+            
+            if total_notifications > max_notifications:
+                # 取得要保留的通知記錄 ID（最新的 max_notifications 筆）
+                keep_response = self.client.table("notifications").select("id").order(
+                    "sent_at", desc=True
+                ).limit(max_notifications).execute()
+                
+                keep_ids = [notification['id'] for notification in keep_response.data]
+                
+                # 刪除不在保留清單中的通知記錄
+                if keep_ids:
+                    delete_response = self.client.table("notifications").delete().not_(
+                        "id", "in", f"({','.join(keep_ids)})"
+                    ).execute()
+                    
+                    deleted_count = len(delete_response.data) if delete_response.data else 0
+                    result['notifications_deleted'] = deleted_count
+                    logger.info(f"  ✓ 刪除了 {deleted_count} 筆舊通知記錄（保留最新 {max_notifications} 筆）")
+            else:
+                logger.info(f"  ✓ 通知記錄數量在限制內，無需清理")
+            
+            # 總結
+            logger.info(f"資料清理完成：刪除 {result['articles_deleted']} 篇文章、{result['notifications_deleted']} 筆通知記錄")
+            return result
+            
+        except Exception as e:
+            logger.error(f"清理資料失敗: {e}")
+            raise
+    
+    def get_database_stats(self) -> Dict[str, int]:
+        """
+        取得資料庫統計資訊。
+        
+        Returns:
+            Dict[str, int]: 各表的資料筆數
+        """
+        try:
+            stats = {}
+            
+            # 統計各表資料量
+            tables = ['journals', 'subscribers', 'articles', 'notifications']
+            
+            for table in tables:
+                response = self.client.table(table).select("id", count="exact").execute()
+                count = response.count if hasattr(response, 'count') else len(response.data)
+                stats[table] = count
+            
+            logger.info(f"資料庫統計: {stats}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"取得資料庫統計失敗: {e}")
+            return {}

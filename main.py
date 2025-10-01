@@ -118,6 +118,21 @@ def main():
     journals_config = load_config('config/journals.json')
     subscribers_config = load_config('config/subscribers.json')
     
+    # 載入清理設定（選用）
+    try:
+        cleanup_config = load_config('config/cleanup_settings.json')
+        cleanup_settings = cleanup_config.get('cleanup', {})
+        logger.info(f"載入清理設定: 保留 {cleanup_settings.get('max_articles', 100)} 篇文章")
+    except:
+        # 如果沒有清理設定檔，使用預設值
+        cleanup_settings = {
+            'enabled': True,
+            'max_articles': 100,
+            'max_notifications': 500,
+            'days_to_keep': 90
+        }
+        logger.info("使用預設清理設定")
+    
     logger.info(f"載入 {len(journals_config['journals'])} 個期刊設定")
     logger.info(f"載入 {len(subscribers_config['subscribers'])} 個訂閱者設定")
     
@@ -323,7 +338,38 @@ def main():
         except Exception as e:
             logger.error(f"推播通知過程中發生錯誤: {e}")
     
-    # ===== 8. 執行總結 =====
+    # ===== 8. 清理舊資料 =====
+    if cleanup_settings.get('enabled', True):
+        logger.info("\n" + "=" * 70)
+        logger.info("清理舊資料")
+        logger.info("=" * 70)
+        
+        try:
+            # 顯示清理前的統計資訊
+            logger.info("清理前的資料庫狀態：")
+            stats_before = db.get_database_stats()
+            for table, count in stats_before.items():
+                logger.info(f"  {table}: {count} 筆")
+            
+            # 執行清理（使用設定檔中的參數）
+            cleanup_result = db.cleanup_old_data(
+                max_articles=cleanup_settings.get('max_articles', 100),
+                max_notifications=cleanup_settings.get('max_notifications', 500),
+                days_to_keep=cleanup_settings.get('days_to_keep', 90)
+            )
+            
+            # 顯示清理後的統計資訊
+            logger.info("\n清理後的資料庫狀態：")
+            stats_after = db.get_database_stats()
+            for table, count in stats_after.items():
+                logger.info(f"  {table}: {count} 筆")
+            
+        except Exception as e:
+            logger.error(f"清理資料過程中發生錯誤: {e}")
+    else:
+        logger.info("\n自動清理已停用（可在 config/cleanup_settings.json 中啟用）")
+    
+    # ===== 9. 執行總結 =====
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
     
