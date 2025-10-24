@@ -161,6 +161,15 @@
       "publisher_type": "elsevier",
       "scraper_class": "PubMedScraper",
       "category": "CRC"
+    },
+    {
+      "name": "Annals of Coloproctology",
+      "issn": "2287-9722",
+      "url": "https://coloproctol.org/",
+      "rss_url": null,
+      "publisher_type": "kscp",
+      "scraper_class": "PubMedScraper",
+      "category": "CRC"
     }
   ]
 }

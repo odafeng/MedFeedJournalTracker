@@ -4,7 +4,7 @@ services:
     name: journal-tracker-daily
     env: python
     plan: free
-    schedule: "0 0 * * *"  # 每天 UTC 0:00（台灣時間 8:00）
+    schedule: "0 22 * * *"  # 每天 UTC 22:00（台灣時間 6:00）
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
