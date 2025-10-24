@@ -318,13 +318,13 @@ class SupabaseClient:
                     "discovered_at", desc=True
                 ).limit(max_articles).execute()
                 
-                keep_ids = [article['id'] for article in keep_response.data]
+                keep_ids = [str(article['id']) for article in keep_response.data]
                 
                 # 刪除不在保留清單中的文章
                 if keep_ids:
-                    # 使用 not.in 運算符
-                    delete_response = self.client.table("articles").delete().not_(
-                        "id", "in", f"({','.join(keep_ids)})"
+                    # 使用 not in 過濾器
+                    delete_response = self.client.table("articles").delete().not_.in_(
+                        "id", keep_ids
                     ).execute()
                     
                     deleted_count = len(delete_response.data) if delete_response.data else 0
@@ -361,12 +361,12 @@ class SupabaseClient:
                     "sent_at", desc=True
                 ).limit(max_notifications).execute()
                 
-                keep_ids = [notification['id'] for notification in keep_response.data]
+                keep_ids = [str(notification['id']) for notification in keep_response.data]
                 
                 # 刪除不在保留清單中的通知記錄
                 if keep_ids:
-                    delete_response = self.client.table("notifications").delete().not_(
-                        "id", "in", f"({','.join(keep_ids)})"
+                    delete_response = self.client.table("notifications").delete().not_.in_(
+                        "id", keep_ids
                     ).execute()
                     
                     deleted_count = len(delete_response.data) if delete_response.data else 0

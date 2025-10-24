@@ -11,8 +11,8 @@ PYTHON_PATH=$(which python3)
 # 建立 logs 目錄
 mkdir -p "$PROJECT_DIR/logs"
 
-# Cron 設定（每天早上 8:00 執行）
-CRON_SCHEDULE="0 8 * * *"
+# Cron 設定（每天早上 6:00 執行，UTC+8）
+CRON_SCHEDULE="0 6 * * *"
 CRON_COMMAND="cd $PROJECT_DIR && $PYTHON_PATH $PROJECT_DIR/main.py >> $PROJECT_DIR/logs/cron.log 2>&1"
 
 echo "=" 
@@ -21,7 +21,7 @@ echo "="
 echo ""
 echo "專案目錄: $PROJECT_DIR"
 echo "Python 路徑: $PYTHON_PATH"
-echo "執行時間: 每天早上 8:00"
+echo "執行時間: 每天早上 6:00 (UTC+8)"
 echo ""
 echo "Cron 設定內容:"
 echo "$CRON_SCHEDULE $CRON_COMMAND"
