@@ -39,10 +39,46 @@
     {
       "name": "Journal of Biomedical Informatics",
       "issn": "1532-0464",
-      "url": "https://www.sciencedirect.com/journal/journal-of-biomedical-informatics",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/",
       "rss_url": null,
       "publisher_type": "elsevier",
-      "scraper_class": "ElsevierScraper",
+      "scraper_class": "PubMedScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Artificial Intelligence in Medicine",
+      "issn": "0933-3657",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/",
+      "rss_url": null,
+      "publisher_type": "elsevier",
+      "scraper_class": "PubMedScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Medical Image Analysis",
+      "issn": "1361-8415",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/",
+      "rss_url": null,
+      "publisher_type": "elsevier",
+      "scraper_class": "PubMedScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Computer Methods and Programs in Biomedicine",
+      "issn": "0169-2607",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/",
+      "rss_url": null,
+      "publisher_type": "elsevier",
+      "scraper_class": "PubMedScraper",
+      "category": "SDS"
+    },
+    {
+      "name": "Computers in Biology and Medicine",
+      "issn": "0010-4825",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/",
+      "rss_url": null,
+      "publisher_type": "elsevier",
+      "scraper_class": "PubMedScraper",
       "category": "SDS"
     },
     {
@@ -115,6 +151,15 @@
       "rss_url": "https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=384&channel-name=International%20Journal%20of%20Colorectal%20Disease",
       "publisher_type": "springer",
       "scraper_class": "RSSScraper",
+      "category": "CRC"
+    },
+    {
+      "name": "European Journal of Surgical Oncology",
+      "issn": "0748-7983",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/",
+      "rss_url": null,
+      "publisher_type": "elsevier",
+      "scraper_class": "PubMedScraper",
       "category": "CRC"
     }
   ]

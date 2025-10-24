@@ -189,13 +189,62 @@ class LineNotifier:
             else:
                 part_message = part
             
-            # 發送
-            if self.send_notification(user_id, part_message):
+            # 直接發送（避免遞迴）
+            if self._send_single_message(user_id, part_message):
                 success_count += 1
             else:
                 logger.error(f"發送第 {idx} 部分失敗")
         
         return success_count == len(parts)
+    
+    def _send_single_message(self, user_id: str, message: str) -> bool:
+        """
+        發送單則訊息（不檢查長度）。
+        
+        Args:
+            user_id: Line 使用者 ID
+            message: 訊息內容
+        
+        Returns:
+            bool: 推播成功返回 True，失敗返回 False
+        """
+        try:
+            # 準備請求資料
+            data = {
+                'to': user_id,
+                'messages': [
+                    {
+                        'type': 'text',
+                        'text': message
+                    }
+                ]
+            }
+            
+            # 發送請求
+            response = requests.post(
+                self.api_url, 
+                headers=self.headers, 
+                json=data,
+                timeout=10
+            )
+            
+            # 檢查回應
+            if response.status_code == 200:
+                logger.info(f"成功推播訊息給使用者: {user_id}")
+                return True
+            else:
+                logger.error(
+                    f"推播失敗 (Status {response.status_code}): "
+                    f"{response.text}"
+                )
+                return False
+                
+        except requests.RequestException as e:
+            logger.error(f"推播請求失敗: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"推播時發生錯誤: {e}")
+            return False
     
     def _split_message(self, message: str) -> List[str]:
         """

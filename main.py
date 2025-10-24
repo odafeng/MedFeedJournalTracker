@@ -14,6 +14,7 @@ from database.supabase_client import SupabaseClient
 from scrapers.rss_scraper import RSSScraper
 from scrapers.ieee_rss_scraper import IEEERSSScraper
 from scrapers.elsevier_scraper import ElsevierScraper
+from scrapers.pubmed_scraper import PubMedScraper
 from notifier.line_notifier import LineNotifier
 from utils.logger import setup_logger
 
@@ -105,6 +106,7 @@ def main():
         os.getenv('SUPABASE_SERVICE_ROLE')
     )
     line_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+    pubmed_api_key = os.getenv('PUBMED_API_KEY')  # 選用
     
     if not all([supabase_url, supabase_key, line_token]):
         logger.error("缺少必要的環境變數！")
@@ -112,6 +114,11 @@ def main():
         logger.error(f"SUPABASE_KEY: {'✓' if supabase_key else '✗'}")
         logger.error(f"LINE_CHANNEL_ACCESS_TOKEN: {'✓' if line_token else '✗'}")
         sys.exit(1)
+    
+    if pubmed_api_key:
+        logger.info(f"✓ 已載入 PubMed API Key")
+    else:
+        logger.info("⚠ 未設定 PubMed API Key（將使用較低速率限制）")
     
     # ===== 2. 載入設定 =====
     logger.info("\n載入設定檔...")
@@ -166,7 +173,8 @@ def main():
         scrapers = {
             'RSSScraper': RSSScraper(),
             'IEEERSSScraper': IEEERSSScraper(),
-            'ElsevierScraper': ElsevierScraper()
+            'ElsevierScraper': ElsevierScraper(),
+            'PubMedScraper': PubMedScraper(api_key=pubmed_api_key)
         }
         logger.info(f"已初始化 {len(scrapers)} 個爬蟲")
     except Exception as e:
@@ -199,11 +207,19 @@ def main():
             
             try:
                 # 抓取文章
-                articles = scraper.fetch_articles(
-                    url=journal['url'],
-                    rss_url=journal.get('rss_url'),
-                    days_back=7
-                )
+                # 為 PubMedScraper 準備額外參數
+                fetch_kwargs = {
+                    'url': journal['url'],
+                    'rss_url': journal.get('rss_url'),
+                    'days_back': 7
+                }
+                
+                # 如果是 PubMedScraper，傳入 ISSN 和期刊名稱
+                if scraper_class == 'PubMedScraper':
+                    fetch_kwargs['journal_issn'] = journal.get('issn')
+                    fetch_kwargs['journal_name'] = journal.get('name')
+                
+                articles = scraper.fetch_articles(**fetch_kwargs)
                 
                 logger.info(f"  抓取到 {len(articles)} 篇文章")
                 
@@ -245,19 +261,47 @@ def main():
     logger.info("推播通知")
     logger.info("=" * 70)
     
-    if not all_new_articles:
-        logger.info("沒有新文章，不需要推播通知")
-    else:
-        logger.info(f"共有 {len(all_new_articles)} 篇新文章需要推播")
+    try:
+        # 取得所有啟用的訂閱者
+        subscribers = db.get_active_subscribers()
+        logger.info(f"取得 {len(subscribers)} 個啟用的訂閱者")
         
-        try:
-            # 取得所有啟用的訂閱者
-            subscribers = db.get_active_subscribers()
-            logger.info(f"取得 {len(subscribers)} 個啟用的訂閱者")
-            
-            if not subscribers:
-                logger.warning("沒有啟用的訂閱者")
+        if not subscribers:
+            logger.warning("沒有啟用的訂閱者")
+        else:
+            if not all_new_articles:
+                logger.info("沒有新文章，將推播通知訊息")
+                
+                # 即使沒有新文章，也推播訊息給每個訂閱者
+                success_count = 0
+                fail_count = 0
+                
+                for subscriber in subscribers:
+                    logger.info(f"\n處理訂閱者: {subscriber['name']}")
+                    
+                    # 建立無新文章的訊息
+                    today = datetime.now().strftime('%Y/%m/%d')
+                    message = f"📚 {subscriber['name']} 的期刊更新 ({today})\n"
+                    message += f"類別：{subscriber['subscribed_category']}\n\n"
+                    message += "😊 今天沒有新文章喔！\n\n"
+                    message += "系統會持續追蹤，有新文章時會立即通知您。"
+                    
+                    # 推播
+                    success = notifier.send_notification(
+                        subscriber['line_user_id'], 
+                        message
+                    )
+                    
+                    if success:
+                        logger.info(f"  ✓ 推播成功")
+                        success_count += 1
+                    else:
+                        logger.error(f"  ✗ 推播失敗")
+                        fail_count += 1
+                
+                logger.info(f"\n推播結果: 成功 {success_count} 個，失敗 {fail_count} 個")
             else:
+                logger.info(f"共有 {len(all_new_articles)} 篇新文章需要推播")
                 # 將文章按類別和期刊分組
                 articles_by_category = organize_articles_by_category(all_new_articles)
                 
@@ -334,9 +378,9 @@ def main():
                         fail_count += 1
                 
                 logger.info(f"\n推播結果: 成功 {success_count} 個，失敗 {fail_count} 個")
-        
-        except Exception as e:
-            logger.error(f"推播通知過程中發生錯誤: {e}")
+    
+    except Exception as e:
+        logger.error(f"推播通知過程中發生錯誤: {e}")
     
     # ===== 8. 清理舊資料 =====
     if cleanup_settings.get('enabled', True):

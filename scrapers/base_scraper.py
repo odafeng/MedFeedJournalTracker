@@ -40,22 +40,32 @@ class BaseScraper(ABC):
     
     def clean_doi(self, doi: str) -> Optional[str]:
         """
-        清理和標準化 DOI。
+        清理和標準化 DOI 或 PMID。
         
         Args:
-            doi: 原始 DOI 字串
+            doi: 原始 DOI/PMID 字串
         
         Returns:
-            Optional[str]: 清理後的 DOI，如果無效則返回 None
+            Optional[str]: 清理後的 DOI/PMID，如果無效則返回 None
         
         Examples:
             >>> scraper.clean_doi('https://doi.org/10.1109/TMI.2025.12345')
             '10.1109/TMI.2025.12345'
             >>> scraper.clean_doi('DOI: 10.1038/s41586-025-00001-1')
             '10.1038/s41586-025-00001-1'
+            >>> scraper.clean_doi('PMID:12345678')
+            'PMID:12345678'
         """
         if not doi:
             return None
+        
+        # 移除空白
+        doi = doi.strip()
+        
+        # 優先檢查是否為 PMID 格式（在做任何 replace 之前）
+        if doi.startswith('PMID:'):
+            # PMID 格式有效，直接返回
+            return doi
         
         # 移除常見的 DOI 前綴
         doi = doi.replace('https://doi.org/', '')
@@ -65,7 +75,7 @@ class BaseScraper(ABC):
         doi = doi.replace('DOI:', '')
         doi = doi.replace('doi:', '')
         
-        # 移除空白
+        # 再次移除空白
         doi = doi.strip()
         
         # 驗證 DOI 格式 (應該以 10. 開頭)
@@ -75,7 +85,7 @@ class BaseScraper(ABC):
             if doi_match:
                 doi = doi_match.group(0)
             else:
-                logger.warning(f"無效的 DOI 格式: {doi}")
+                logger.debug(f"無標準 DOI 格式: {doi}")
                 return None
         
         return doi
