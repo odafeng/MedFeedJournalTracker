@@ -38,33 +38,49 @@ Journal Tracker 是一個自動化系統，用於：
 
 ### ✨ 核心功能
 
-- 🔍 **自動抓取**：支援 13 個學術期刊的 RSS feeds
+- 🔍 **自動抓取**：支援 29 個學術期刊（RSS + PubMed API）
 - 🏷️ **類別標籤**：CRC 和 SDS 兩大類別
 - 👥 **多訂閱者**：支援多人訂閱，每人可選擇類別
 - 🔄 **智慧去重**：基於 DOI，避免重複推播
 - 💬 **Line 推播**：客製化訊息，只推播相關類別的文章
 - 📦 **雲端資料庫**：使用 Supabase 儲存文章歷史
 - 🧹 **自動清理**：定期清理舊資料，避免資料庫無限增長
-- ⏰ **自動排程**：每天自動執行
+- ⏰ **自動排程**：每天自動執行（Render.com）
 
 ### 📊 目前追蹤的期刊
 
-**SDS 類別（9 個期刊）**：
-- IEEE Transactions on Medical Imaging
-- Nature Machine Intelligence
-- npj Digital Medicine
-- Annual Review of Biomedical Data Science
-- Journal of Biomedical Informatics
-- IEEE Journal of Biomedical and Health Informatics
-- IEEE Transactions on Medical Robotics and Bionics
-- IEEE Transactions on Robotics
-- IEEE Transactions on Automation Science and Engineering
-
-**CRC 類別（4 個期刊）**：
-- Diseases of the Colon and Rectum
+**CRC 類別（15 個期刊）**：
+- Annals of Coloproctology
+- Annals of Surgery
+- BMC Cancer
+- British Journal of Surgery
+- Colorectal Cancer
 - Colorectal Disease
-- Techniques in Coloproctology
+- Diseases of the Colon and Rectum
+- European Journal of Surgical Oncology
+- Gastroenterology
 - International Journal of Colorectal Disease
+- Journal of Clinical Oncology
+- Journal of Gastrointestinal Surgery
+- Surgical Endoscopy
+- Techniques in Coloproctology
+- The Lancet Gastroenterology & Hepatology
+
+**SDS 類別（14 個期刊）**：
+- Annual Review of Biomedical Data Science
+- Artificial Intelligence in Medicine
+- Computer Methods and Programs in Biomedicine
+- Computerized Medical Imaging and Graphics (CMIG)
+- Computers in Biology and Medicine
+- International Journal of Computer Assisted Radiology and Surgery (IJCARS)
+- International Journal of Medical Robotics and Computer Assisted Surgery
+- Journal of Biomedical Informatics
+- Journal of the American Medical Informatics Association (JAMIA)
+- Medical Image Analysis (MedIA)
+- Nature Machine Intelligence
+- npj Computational Materials
+- npj Digital Medicine
+- Quantitative Imaging in Medicine and Surgery (QIMS)
 
 詳細清單請參考 [JOURNAL_LIST.md](JOURNAL_LIST.md)
 
