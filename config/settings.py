@@ -47,7 +47,9 @@ class Settings:
     notion_token: Optional[str] = None
     notion_database_id: Optional[str] = None
 
-    # LINE (optional — parallel raw-alert channel for subscribers)
+    # LINE (optional — parallel raw-alert channel for subscribers).
+    # Subscribers live in Supabase (authoritative); the JSON file is an
+    # optional local seed that gets upserted into the DB when present.
     line_channel_access_token: Optional[str] = None
     line_subscribers_file: Path = Path("config/subscribers.json")
 
@@ -67,10 +69,11 @@ class Settings:
             self, "notion_sync_enabled",
             bool(self.notion_token and self.notion_database_id),
         )
-        # LINE is enabled only if token AND subscribers file exist
+        # LINE is enabled whenever a token is set — subscribers come from DB,
+        # not from a file, so the presence of subscribers.json is irrelevant.
         object.__setattr__(
             self, "line_enabled",
-            bool(self.line_channel_access_token) and self.line_subscribers_file.exists(),
+            bool(self.line_channel_access_token),
         )
 
     @classmethod

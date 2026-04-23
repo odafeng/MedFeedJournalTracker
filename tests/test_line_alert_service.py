@@ -1,8 +1,16 @@
-"""Unit tests for LINE alert formatter."""
+"""Unit tests for LINE alert formatter and service."""
 
 from __future__ import annotations
 
-from services.line_alert_service import _format_article, _format_message
+import json
+from pathlib import Path
+from unittest.mock import MagicMock
+
+from services.line_alert_service import (
+    LineAlertService,
+    _format_article,
+    _format_message,
+)
 
 
 def _article(
@@ -72,5 +80,96 @@ class TestFormatMessage:
         assert "1. " in msg
         assert "2. " in msg
         assert "3. " in msg
-        # Indexing is global, not per-journal
         assert msg.count("1. ") == 1
+
+
+class TestSeedFromJson:
+    def test_missing_file_returns_zero_and_skips_upsert(self, tmp_path: Path):
+        db = MagicMock()
+        n = LineAlertService.seed_from_json(db, tmp_path / "nope.json")
+        assert n == 0
+        db.upsert_subscribers.assert_not_called()
+
+    def test_valid_file_upserts_and_returns_count(self, tmp_path: Path):
+        db = MagicMock()
+        f = tmp_path / "subs.json"
+        f.write_text(
+            json.dumps({
+                "subscribers": [
+                    {"name": "Alice", "line_user_id": "Uaaa", "subscribed_category": "CRC"},
+                    {"name": "Bob", "line_user_id": "Ubbb", "subscribed_category": "SDS"},
+                ]
+            }),
+            encoding="utf-8",
+        )
+        n = LineAlertService.seed_from_json(db, f)
+        assert n == 2
+        db.upsert_subscribers.assert_called_once()
+        rows = db.upsert_subscribers.call_args[0][0]
+        assert {r["name"] for r in rows} == {"Alice", "Bob"}
+
+    def test_malformed_rows_are_skipped(self, tmp_path: Path):
+        db = MagicMock()
+        f = tmp_path / "subs.json"
+        f.write_text(
+            json.dumps({
+                "subscribers": [
+                    {"name": "Valid", "line_user_id": "Uvvv", "subscribed_category": "CRC"},
+                    {"name": "MissingCategory", "line_user_id": "Uxxx"},
+                ]
+            }),
+            encoding="utf-8",
+        )
+        n = LineAlertService.seed_from_json(db, f)
+        assert n == 1
+        rows = db.upsert_subscribers.call_args[0][0]
+        assert len(rows) == 1
+        assert rows[0]["name"] == "Valid"
+
+    def test_malformed_json_returns_zero(self, tmp_path: Path):
+        db = MagicMock()
+        f = tmp_path / "bad.json"
+        f.write_text("not { valid json", encoding="utf-8")
+        n = LineAlertService.seed_from_json(db, f)
+        assert n == 0
+        db.upsert_subscribers.assert_not_called()
+
+
+class TestRunReadsFromDB:
+    def test_no_articles_does_not_hit_db(self):
+        db = MagicMock()
+        LineAlertService("token", db).run([])
+        db.get_active_subscribers.assert_not_called()
+
+    def test_empty_db_subscribers_skips_quietly(self):
+        db = MagicMock()
+        db.get_active_subscribers.return_value = []
+        LineAlertService("token", db).run([_article()])
+        db.get_active_subscribers.assert_called_once()
+
+    def test_category_filter_skips_irrelevant_subscribers(self, monkeypatch):
+        """SDS subscriber should not receive a CRC-only article batch."""
+        db = MagicMock()
+        db.get_active_subscribers.return_value = [
+            {"name": "CRC-user", "line_user_id": "Ucrc", "subscribed_category": "CRC"},
+            {"name": "SDS-user", "line_user_id": "Usds", "subscribed_category": "SDS"},
+        ]
+
+        sent_calls: list[tuple[str, str]] = []
+
+        class FakeNotifier:
+            def __init__(self, token: str, user_id: str) -> None:
+                self._user_id = user_id
+
+            def send(self, message: str) -> bool:
+                sent_calls.append((self._user_id, message))
+                return True
+
+        monkeypatch.setattr(
+            "services.line_alert_service.LineNotifier", FakeNotifier
+        )
+        LineAlertService("token", db).run([_article()])  # CRC article
+
+        # Only the CRC subscriber gets a send
+        assert len(sent_calls) == 1
+        assert sent_calls[0][0] == "Ucrc"

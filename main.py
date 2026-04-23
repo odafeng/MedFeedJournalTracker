@@ -61,17 +61,20 @@ def main() -> int:
     # Parallel channel to Telegram — delivers title/authors/journal/DOI to
     # subscribers filtered by category. Runs before LLM so alerts go out
     # even if Claude is down or budget is exhausted.
+    # Subscribers live in Supabase; config/subscribers.json is an optional
+    # local seed (present on laptop, absent on Render).
     if settings.line_enabled:
         try:
+            LineAlertService.seed_from_json(db, settings.line_subscribers_file)
             line_service = LineAlertService(
                 settings.line_channel_access_token or "",
-                settings.line_subscribers_file,
+                db,
             )
             line_service.run(new_articles)
         except Exception as e:
             logger.error(f"LINE alert failed (non-fatal): {e}", exc_info=True)
     else:
-        logger.info("LINE disabled (no token or no subscribers file); skipping alerts")
+        logger.info("LINE disabled (no LINE_CHANNEL_ACCESS_TOKEN); skipping alerts")
 
     # ---- Stage 2: LLM (processes *all* unprocessed, not just newly-fetched) ----
     if settings.llm_enabled:
