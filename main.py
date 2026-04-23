@@ -9,12 +9,20 @@ Pipeline:
   5. Cleanup old rows
 
 Each stage lives in its own service in `services/`.
+
+Resilience policy
+-----------------
+Every stage is wrapped in its own try/except so a failure in one never
+silences the rest. Errors are accumulated in `stage_errors`; if any
+stage failed, the process exits 1 at the end so Render flags the run
+as failed in its dashboard, even though all stages were attempted.
 """
 
 from __future__ import annotations
 
 import sys
 from datetime import datetime
+from typing import Any
 
 from config import Settings
 from database.supabase_client import SupabaseClient
@@ -53,9 +61,16 @@ def main() -> int:
     }
     logger.info(f"Initialized {len(scrapers)} scrapers")
 
+    stage_errors: list[str] = []
+    new_articles: list[dict[str, Any]] = []
+
     # ---- Stage 1: Fetch ----
-    fetcher = FetcherService(db, scrapers, days_back=settings.days_back)
-    new_articles = fetcher.run()
+    try:
+        fetcher = FetcherService(db, scrapers, days_back=settings.days_back)
+        new_articles = fetcher.run()
+    except Exception as e:
+        logger.error(f"Fetch failed (non-fatal): {e}", exc_info=True)
+        stage_errors.append("fetch")
 
     # ---- Stage 1.5: LINE raw alerts (independent of LLM) ----
     # Parallel channel to Telegram — delivers title/authors/journal/DOI to
@@ -73,17 +88,22 @@ def main() -> int:
             line_service.run(new_articles)
         except Exception as e:
             logger.error(f"LINE alert failed (non-fatal): {e}", exc_info=True)
+            stage_errors.append("line")
     else:
         logger.info("LINE disabled (no LINE_CHANNEL_ACCESS_TOKEN); skipping alerts")
 
     # ---- Stage 2: LLM (processes *all* unprocessed, not just newly-fetched) ----
     if settings.llm_enabled:
-        summarizer = LLMSummarizer(
-            api_key=settings.anthropic_api_key,
-            model=settings.llm_model,
-        )
-        llm_service = LLMService(db, summarizer, daily_budget=settings.llm_daily_budget)
-        llm_service.run()
+        try:
+            summarizer = LLMSummarizer(
+                api_key=settings.anthropic_api_key,
+                model=settings.llm_model,
+            )
+            llm_service = LLMService(db, summarizer, daily_budget=settings.llm_daily_budget)
+            llm_service.run()
+        except Exception as e:
+            logger.error(f"LLM stage failed (non-fatal): {e}", exc_info=True)
+            stage_errors.append("llm")
     else:
         logger.info("LLM disabled; skipping summarization")
 
@@ -97,31 +117,48 @@ def main() -> int:
             syncer.sync(to_sync)
         except Exception as e:
             logger.error(f"Notion sync failed (non-fatal): {e}", exc_info=True)
+            stage_errors.append("notion")
     else:
         logger.info("Notion sync disabled (missing NOTION_TOKEN or NOTION_DATABASE_ID)")
 
     # ---- Stage 4: Telegram digest ----
     if settings.telegram_enabled:
-        # Use processed articles from the last 24h, not just what we fetched this run
-        digest_articles = db.get_recent_articles_with_journal(days=1, require_llm=True)
-        notifier = TelegramNotifier(settings.telegram_token, settings.telegram_chat_id)
-        notifier_service = NotifierService(db, notifier)
-        notifier_service.run(digest_articles)
+        try:
+            # Use processed articles from the last 24h, not just what we fetched this run
+            digest_articles = db.get_recent_articles_with_journal(days=1, require_llm=True)
+            notifier = TelegramNotifier(settings.telegram_token, settings.telegram_chat_id)
+            notifier_service = NotifierService(db, notifier)
+            notifier_service.run(digest_articles)
+        except Exception as e:
+            logger.error(f"Telegram digest failed (non-fatal): {e}", exc_info=True)
+            stage_errors.append("telegram")
     else:
         logger.info("Telegram disabled; skipping digest")
 
     # ---- Stage 5: Cleanup ----
-    cleanup_service = CleanupService(db, max_articles=10000, max_notifications=500)
-    cleanup_service.run()
+    try:
+        cleanup_service = CleanupService(db, max_articles=10000, max_notifications=500)
+        cleanup_service.run()
+    except Exception as e:
+        logger.error(f"Cleanup failed (non-fatal): {e}", exc_info=True)
+        stage_errors.append("cleanup")
 
     # ---- Summary ----
     end = datetime.now()
     duration = (end - start).total_seconds()
     logger.info("=" * 70)
     logger.info(f"Done in {duration:.1f}s · {len(new_articles)} new articles this run")
-    logger.info(f"Final stats: {db.get_database_stats()}")
+    try:
+        logger.info(f"Final stats: {db.get_database_stats()}")
+    except Exception as e:
+        logger.warning(f"Could not fetch final stats: {e}")
+    if stage_errors:
+        logger.error(f"Stages with errors: {', '.join(stage_errors)}")
     logger.info("=" * 70)
-    return 0
+
+    # Non-zero exit so Render flags the run as failed when any stage erred,
+    # even though we attempted (and may have succeeded on) the rest.
+    return 1 if stage_errors else 0
 
 
 if __name__ == "__main__":
