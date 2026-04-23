@@ -1,22 +1,44 @@
 services:
-  # Cron Job: 每天早上 8:00 執行期刊追蹤
+  # Daily cron: 06:00 Asia/Taipei (22:00 UTC previous day)
   - type: cron
-    name: journal-tracker-daily
+    name: medfeed-journal-tracker-daily
     env: python
     plan: free
-    schedule: "0 22 * * *"  # 每天 UTC 22:00（台灣時間 6:00）
-    buildCommand: pip install -r requirements.txt
+    schedule: "0 22 * * *"
+    buildCommand: |
+      pip install --upgrade pip uv
+      uv pip install --system -e .
     startCommand: python main.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      # Supabase
       - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_API_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE
         sync: false
-      - key: LINE_CHANNEL_ACCESS_TOKEN
+      # Telegram
+      - key: TELEGRAM_TOKEN
         sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      # Anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-sonnet-4-5-20250929
+      - key: LLM_DAILY_BUDGET
+        value: "50"
+      # PubMed
+      - key: PUBMED_API_KEY
+        sync: false
+      # Notion
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_DATABASE_ID
+        sync: false
+      # Runtime
       - key: LOG_LEVEL
         value: INFO
+      - key: DAYS_BACK
+        value: "7"

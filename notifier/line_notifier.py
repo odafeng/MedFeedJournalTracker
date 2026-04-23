@@ -1,9 +1,10 @@
 """Line Messaging API notifier for sending journal updates."""
 
-import requests
-from typing import List, Dict, Optional
 import logging
 from datetime import datetime
+from typing import Dict, List
+
+import requests
 
 logger = logging.getLogger("journal_tracker")
 
@@ -71,8 +72,8 @@ class LineNotifier:
         today = datetime.now().strftime('%Y/%m/%d')
         message = f"📚 {subscriber_name} 的期刊更新 ({today})\n"
         message += f"類別：{category}\n"
-        message += f"📅 顯示過去 7 天內的新文章\n"
-        message += f"\n"
+        message += "📅 顯示過去 7 天內的新文章\n"
+        message += "\n"
         
         # 按期刊分組顯示文章
         for journal_name, articles in articles_by_journal.items():

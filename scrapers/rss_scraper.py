@@ -1,10 +1,11 @@
 """RSS scraper for fetching journal articles from RSS feeds."""
 
-import feedparser
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
 import logging
 import re
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+import feedparser
 
 from .base_scraper import BaseScraper
 
