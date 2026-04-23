@@ -2,9 +2,10 @@
 
 Pipeline:
   1. Fetch articles from all active journals (with batch dedup)
+  1.5. Send raw LINE alerts to subscribers (independent of LLM)
   2. LLM summarize + score (respects daily budget)
   3. Sync new articles to Notion (if configured)
-  4. Send digest via Telegram
+  4. Send curated digest via Telegram
   5. Cleanup old rows
 
 Each stage lives in its own service in `services/`.
@@ -25,6 +26,7 @@ from scrapers.pubmed_scraper import PubMedScraper
 from scrapers.rss_scraper import RSSScraper
 from services.cleanup_service import CleanupService
 from services.fetcher_service import FetcherService
+from services.line_alert_service import LineAlertService
 from services.llm_service import LLMService
 from services.notifier_service import NotifierService
 from sync.notion_syncer import NotionSyncer
@@ -54,6 +56,22 @@ def main() -> int:
     # ---- Stage 1: Fetch ----
     fetcher = FetcherService(db, scrapers, days_back=settings.days_back)
     new_articles = fetcher.run()
+
+    # ---- Stage 1.5: LINE raw alerts (independent of LLM) ----
+    # Parallel channel to Telegram — delivers title/authors/journal/DOI to
+    # subscribers filtered by category. Runs before LLM so alerts go out
+    # even if Claude is down or budget is exhausted.
+    if settings.line_enabled:
+        try:
+            line_service = LineAlertService(
+                settings.line_channel_access_token or "",
+                settings.line_subscribers_file,
+            )
+            line_service.run(new_articles)
+        except Exception as e:
+            logger.error(f"LINE alert failed (non-fatal): {e}", exc_info=True)
+    else:
+        logger.info("LINE disabled (no token or no subscribers file); skipping alerts")
 
     # ---- Stage 2: LLM (processes *all* unprocessed, not just newly-fetched) ----
     if settings.llm_enabled:

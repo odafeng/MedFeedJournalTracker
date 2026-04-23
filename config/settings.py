@@ -47,6 +47,10 @@ class Settings:
     notion_token: Optional[str] = None
     notion_database_id: Optional[str] = None
 
+    # LINE (optional — parallel raw-alert channel for subscribers)
+    line_channel_access_token: Optional[str] = None
+    line_subscribers_file: Path = Path("config/subscribers.json")
+
     # Runtime
     log_level: str = "INFO"
     days_back: int = 7
@@ -55,12 +59,18 @@ class Settings:
     llm_enabled: bool = True
     telegram_enabled: bool = True
     notion_sync_enabled: bool = field(init=False)
+    line_enabled: bool = field(init=False)
 
     def __post_init__(self) -> None:
         # Notion sync is enabled only if both token and DB id are present
         object.__setattr__(
             self, "notion_sync_enabled",
             bool(self.notion_token and self.notion_database_id),
+        )
+        # LINE is enabled only if token AND subscribers file exist
+        object.__setattr__(
+            self, "line_enabled",
+            bool(self.line_channel_access_token) and self.line_subscribers_file.exists(),
         )
 
     @classmethod
@@ -99,6 +109,7 @@ class Settings:
             pubmed_api_key=os.getenv("PUBMED_API_KEY"),
             notion_token=os.getenv("NOTION_TOKEN"),
             notion_database_id=os.getenv("NOTION_DATABASE_ID"),
+            line_channel_access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             days_back=int(os.getenv("DAYS_BACK", "7")),
         )
