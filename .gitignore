@@ -47,3 +47,6 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# 訂閱者真實資料(含 Line User ID)
+config/subscribers.json

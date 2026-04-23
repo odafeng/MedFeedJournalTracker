@@ -1,0 +1,14 @@
+{
+  "subscribers": [
+    {
+      "name": "訂閱者姓名",
+      "line_user_id": "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "subscribed_category": "CRC"
+    },
+    {
+      "name": "訂閱者姓名",
+      "line_user_id": "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "subscribed_category": "SDS"
+    }
+  ]
+}
