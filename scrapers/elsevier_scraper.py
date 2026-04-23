@@ -1,12 +1,13 @@
 """Elsevier/ScienceDirect scraper for journals without RSS feeds."""
 
+import logging
+import re
+import time
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
-import logging
-import time
-import re
 
 from .base_scraper import BaseScraper
 
@@ -189,7 +190,7 @@ class ElsevierScraper(BaseScraper):
             if published_date_str:
                 try:
                     published_date = datetime.strptime(published_date_str, '%Y-%m-%d')
-                except:
+                except Exception:
                     pass
         
         # 如果沒有日期或日期太舊，跳過

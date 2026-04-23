@@ -6,36 +6,29 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
 
-# 環境變數
+# uv
+.uv-cache/
+
+# Environment
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# 日誌
+# Logs
 logs/
 *.log
 
@@ -43,10 +36,17 @@ logs/
 .DS_Store
 Thumbs.db
 
-# 測試
+# Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# 訂閱者真實資料(含 Line User ID)
+# Runtime
+user_ids.json
+*.sqlite
+
+# 訂閱者真實資料(v1 遺留,含 Line User ID;v2 不再使用)
 config/subscribers.json
