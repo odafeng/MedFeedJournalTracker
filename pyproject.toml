@@ -5,7 +5,8 @@ description = "Automated medical journal tracker with LLM-powered relevance scor
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Shih-Feng Huang", email = "odafeng@hotmail.com" }]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 
 dependencies = [
   # Core scraping
@@ -40,6 +41,14 @@ medfeed = "main:main"
 
 [tool.uv]
 package = false
+
+# Tell setuptools exactly which top-level packages to include.
+# Needed because this repo has multiple flat-layout packages and setuptools
+# refuses to auto-discover when it sees more than one candidate.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["config", "database", "llm", "notifier", "scrapers", "services", "sync"]
+exclude = ["tests*", "webhook_app*"]
 
 [tool.ruff]
 line-length = 100
