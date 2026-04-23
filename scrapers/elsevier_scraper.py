@@ -1,12 +1,13 @@
 """Elsevier/ScienceDirect scraper for journals without RSS feeds."""
 
+import logging
+import re
+import time
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
-import logging
-import time
-import re
 
 from .base_scraper import BaseScraper
 

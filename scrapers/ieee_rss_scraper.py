@@ -1,11 +1,12 @@
 """Special RSS scraper for IEEE journals that require browser-like requests."""
 
-import requests
-import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
 import logging
 import re
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+import requests
 
 from .base_scraper import BaseScraper
 

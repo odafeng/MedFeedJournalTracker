@@ -1,11 +1,12 @@
 """PubMed E-utilities scraper for fetching journal articles."""
 
-import requests
-import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional
 import logging
 import time
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+import requests
 
 from .base_scraper import BaseScraper
 
@@ -70,7 +71,7 @@ class PubMedScraper(BaseScraper):
             List[Dict]: 文章列表
         """
         try:
-            logger.info(f"開始使用 PubMed API 抓取期刊文章")
+            logger.info("開始使用 PubMed API 抓取期刊文章")
             
             # 建構搜尋查詢
             query = self._build_query(journal_issn, journal_name, days_back)
