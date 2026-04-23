@@ -1,0 +1,13 @@
+# Auto-generated from pyproject.toml [project].dependencies
+# DO NOT EDIT BY HAND — run: python3 scripts/sync_requirements.py
+# Render uses this file; local dev can use 'uv pip install -e .' instead.
+
+feedparser>=6.0.10
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+supabase>=2.0.0
+python-dotenv>=1.0.0
+anthropic>=0.40.0
+notion-client>=2.2.1
+tenacity>=8.2.0
