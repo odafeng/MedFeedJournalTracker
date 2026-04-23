@@ -190,7 +190,7 @@ class ElsevierScraper(BaseScraper):
             if published_date_str:
                 try:
                     published_date = datetime.strptime(published_date_str, '%Y-%m-%d')
-                except:
+                except Exception:
                     pass
         
         # 如果沒有日期或日期太舊，跳過

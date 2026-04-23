@@ -363,7 +363,7 @@ class PubMedScraper(BaseScraper):
                         '%Y-%m-%d'
                     )
                     return date_obj.strftime('%Y-%m-%d')
-                except:
+                except Exception:
                     pass
         
         return None

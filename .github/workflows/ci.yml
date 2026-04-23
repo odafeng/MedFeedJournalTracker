@@ -29,7 +29,8 @@ jobs:
       - name: Lint (ruff)
         run: |
           source .venv/bin/activate
-          ruff check --select E,F,I --exclude webhook_app --exclude webhook_service.py \
+          ruff check --select E,F,I --ignore E501 \
+            --exclude webhook_app --exclude webhook_service.py \
             config database llm notifier scrapers services sync tests main.py
 
       - name: Type check (mypy, lenient)

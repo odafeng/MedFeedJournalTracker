@@ -150,7 +150,7 @@ class RSSScraper(BaseScraper):
                 if time_struct:
                     try:
                         return datetime(*time_struct[:6])
-                    except:
+                    except Exception:
                         pass
         
         # 嘗試字串格式
@@ -162,7 +162,7 @@ class RSSScraper(BaseScraper):
                 if parsed:
                     try:
                         return datetime.strptime(parsed, '%Y-%m-%d')
-                    except:
+                    except Exception:
                         pass
         
         return None

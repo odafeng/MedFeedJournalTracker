@@ -63,7 +63,7 @@ class IEEERSSScraper(BaseScraper):
             try:
                 self.session.get(url, timeout=10)
                 logger.debug("已訪問期刊主頁建立 session")
-            except:
+            except Exception:
                 pass
             
             # 下載 RSS feed
@@ -146,7 +146,7 @@ class IEEERSSScraper(BaseScraper):
             if date_str:
                 try:
                     published_date = datetime.strptime(date_str, '%Y-%m-%d')
-                except:
+                except Exception:
                     pass
         
         # 如果沒有日期，使用當前時間

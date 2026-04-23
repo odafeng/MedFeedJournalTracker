@@ -67,7 +67,6 @@ class TestFormatDigest:
         assert "Some title" not in msg  # title not rendered at all
 
     def test_html_escaped(self):
-        article = _article(title="<script>alert(1)</script>")
         msg = format_digest([_article(crc=5, **{"title": "<b>x</b>"})])
         assert "<b>x</b>" not in msg.replace("<b>📚", "")  # our own <b> tags stay; title tags escaped
         # Our title tag is now wrapped in escaped form
