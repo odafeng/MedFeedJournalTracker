@@ -85,12 +85,26 @@ class SupabaseClient:
         )
 
     # ---- articles ----
-    def existing_dois(self, dois: list[str]) -> set[str]:
-        """Batch check: return the subset of `dois` already in DB. Replaces N+1 `article_exists`."""
+    def existing_dois(self, dois: list[str], chunk_size: int = 100) -> set[str]:
+        """Batch check: return the subset of `dois` already in DB.
+
+        Chunks the IN clause to keep the PostgREST URL under the ~8KB limit.
+        With 100 DOIs of ~50 chars each, the encoded query stays well below
+        any reasonable proxy/server cap.
+        """
         if not dois:
             return set()
-        response = self.client.table("articles").select("doi").in_("doi", dois).execute()
-        return {row["doi"] for row in response.data}
+        # Dedup input to avoid wasted query length on duplicate DOIs from
+        # the same feed (happens with Gastro-style conference abstract dumps).
+        unique = list({d for d in dois if d})
+        found: set[str] = set()
+        for i in range(0, len(unique), chunk_size):
+            chunk = unique[i : i + chunk_size]
+            response = (
+                self.client.table("articles").select("doi").in_("doi", chunk).execute()
+            )
+            found.update(row["doi"] for row in response.data)
+        return found
 
     def insert_articles(self, articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not articles:
