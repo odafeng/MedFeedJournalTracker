@@ -11,6 +11,12 @@ from .base_scraper import BaseScraper
 
 logger = logging.getLogger("journal_tracker")
 
+# Hard cap on entries processed per feed. Some feeds (e.g. Gastroenterology's
+# DDW conference abstract dump) emit 6000+ items in a single response. We
+# only ever care about the newest articles, and processing more than this
+# explodes downstream dedup costs without benefit.
+MAX_ENTRIES_PER_FEED = 200
+
 
 class RSSScraper(BaseScraper):
     """通用 RSS 爬蟲，適用於大部分提供 RSS feed 的期刊。"""
@@ -62,35 +68,50 @@ class RSSScraper(BaseScraper):
             if not feed.entries:
                 logger.warning(f"RSS feed 沒有文章: {rss_url}")
                 return []
-            
+
+            total = len(feed.entries)
+            if total > MAX_ENTRIES_PER_FEED:
+                logger.warning(
+                    f"Feed has {total} entries, capping at {MAX_ENTRIES_PER_FEED}: {rss_url}"
+                )
+
             # 計算截止日期
             cutoff_date = datetime.now() - timedelta(days=days_back)
-            
-            articles = []
-            for entry in feed.entries:
+            now = datetime.now()
+
+            articles: List[Dict] = []
+            # Only walk the first MAX_ENTRIES_PER_FEED entries. Most feeds are
+            # sorted newest-first, so this preserves recent items.
+            for entry in feed.entries[:MAX_ENTRIES_PER_FEED]:
                 try:
-                    article = self._parse_entry(entry, cutoff_date)
+                    article = self._parse_entry(entry, cutoff_date, now)
                     if article:
                         articles.append(article)
                 except Exception as e:
                     logger.error(f"解析文章失敗: {e}")
                     continue
-            
-            logger.info(f"成功解析 {len(articles)} 篇文章（過去 {days_back} 天）")
+
+            logger.info(
+                f"成功解析 {len(articles)} 篇文章（過去 {days_back} 天，"
+                f"檢查了 {min(total, MAX_ENTRIES_PER_FEED)}/{total} 個 entries）"
+            )
             return articles
             
         except Exception as e:
             logger.error(f"RSS feed 解析失敗 ({rss_url}): {e}")
             return []
     
-    def _parse_entry(self, entry, cutoff_date: datetime) -> Optional[Dict]:
+    def _parse_entry(
+        self, entry, cutoff_date: datetime, now: datetime
+    ) -> Optional[Dict]:
         """
         解析單一 RSS entry。
-        
+
         Args:
             entry: feedparser entry 物件
-            cutoff_date: 截止日期
-        
+            cutoff_date: 截止日期（早於此日期的文章會被過濾掉）
+            now: 當前時間（用於拒絕未來日期）
+
         Returns:
             Optional[Dict]: 文章資料，如果不符合條件則返回 None
         """
@@ -99,11 +120,20 @@ class RSSScraper(BaseScraper):
         if not published_date:
             logger.debug(f"無法提取日期，跳過文章: {entry.get('title', 'Unknown')}")
             return None
-        
+
         # 檢查日期是否在範圍內
         if published_date < cutoff_date:
             return None
-        
+
+        # 拒絕未來日期（feed 偶爾有 typo 或時區問題）
+        # 給 1 天的緩衝，因為時區差異可能讓「明天」的文章合法出現
+        if published_date > now + timedelta(days=1):
+            logger.debug(
+                f"日期在未來，跳過文章: {entry.get('title', 'Unknown')} "
+                f"({published_date})"
+            )
+            return None
+
         # 提取 DOI
         doi = self._extract_doi(entry)
         if not doi:
@@ -140,11 +170,13 @@ class RSSScraper(BaseScraper):
         return article
     
     def _extract_date(self, entry) -> Optional[datetime]:
-        """從 entry 中提取發表日期。"""
-        # 嘗試不同的日期欄位
-        date_fields = ['published_parsed', 'updated_parsed', 'created_parsed']
-        
-        for field in date_fields:
+        """從 entry 中提取發表日期。
+
+        優先順序：published > prism_publicationdate > updated > created
+        published 比 updated 可靠，因為 updated 可能在每次 feed 重建時被刷新。
+        """
+        # 嘗試 *_parsed 結構化欄位（feedparser 已標準化為 time.struct_time）
+        for field in ('published_parsed', 'updated_parsed', 'created_parsed'):
             if hasattr(entry, field):
                 time_struct = getattr(entry, field)
                 if time_struct:
@@ -152,9 +184,15 @@ class RSSScraper(BaseScraper):
                         return datetime(*time_struct[:6])
                     except Exception:
                         pass
-        
-        # 嘗試字串格式
-        date_str_fields = ['published', 'updated', 'created']
+
+        # 嘗試字串格式（包含 prism:publicationDate，常見於 Atypon 平台）
+        date_str_fields = (
+            'published',
+            'prism_publicationdate',
+            'updated',
+            'created',
+            'dc_date',
+        )
         for field in date_str_fields:
             date_str = entry.get(field, '')
             if date_str:
@@ -164,7 +202,7 @@ class RSSScraper(BaseScraper):
                         return datetime.strptime(parsed, '%Y-%m-%d')
                     except Exception:
                         pass
-        
+
         return None
     
     def _extract_doi(self, entry) -> Optional[str]:

@@ -30,12 +30,26 @@ class FetcherService:
         logger.info(f"Processing {len(journals)} active journals")
 
         all_new: list[dict[str, Any]] = []
+        failed: list[str] = []
 
         for idx, journal in enumerate(journals, 1):
             logger.info(f"[{idx}/{len(journals)}] {journal['name']} ({journal['category']})")
-            new_articles = self._process_one_journal(journal)
-            all_new.extend(new_articles)
+            try:
+                new_articles = self._process_one_journal(journal)
+                all_new.extend(new_articles)
+            except Exception as e:
+                # Belt-and-suspenders: _process_one_journal already catches
+                # known failure points, but catch anything that escapes here
+                # so a single bad journal can never abort the whole fetch loop.
+                logger.error(
+                    f"  Unexpected error processing {journal['name']}: {e}",
+                    exc_info=True,
+                )
+                failed.append(journal["name"])
+                continue
 
+        if failed:
+            logger.warning(f"Failed journals ({len(failed)}): {', '.join(failed)}")
         logger.info(f"Total new articles across all journals: {len(all_new)}")
         return all_new
 
@@ -67,7 +81,16 @@ class FetcherService:
 
         # Batch dedup — single DB query instead of N
         dois = [a["doi"] for a in articles if a.get("doi")]
-        existing = self.db.existing_dois(dois)
+        try:
+            existing = self.db.existing_dois(dois)
+        except Exception as e:
+            # Don't let one journal's dedup failure abort the whole fetch loop.
+            # We log and skip rather than re-raising so subsequent journals
+            # still get processed.
+            logger.error(
+                f"  Dedup failed ({len(dois)} DOIs): {e}", exc_info=True
+            )
+            return []
         new_articles = [a for a in articles if a["doi"] not in existing]
         logger.info(f"  {len(new_articles)} new (after dedup)")
 
