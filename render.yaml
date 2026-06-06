@@ -42,3 +42,24 @@ services:
         value: INFO
       - key: DAYS_BACK
         value: "7"
+
+  # Web service: LINE Query Agent (24/7)
+  - type: web
+    name: medfeed-query-agent
+    env: python
+    plan: free
+    buildCommand: |
+      pip install --upgrade pip uv
+      uv pip install --system -e .
+    startCommand: gunicorn agents.webhook:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

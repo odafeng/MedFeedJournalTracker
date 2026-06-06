@@ -28,6 +28,9 @@ dependencies = [
   "notion-client>=2.2.1",
   # Reliability
   "tenacity>=8.2.0",
+  # Webhook
+  "flask>=3.0.0",
+  "gunicorn>=22.0.0",
 ]
 
 [project.optional-dependencies]
@@ -51,7 +54,7 @@ package = false
 # refuses to auto-discover when it sees more than one candidate.
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["config", "database", "llm", "notifier", "scrapers", "services", "sync"]
+include = ["agents", "config", "database", "llm", "notifier", "scrapers", "services", "sync"]
 exclude = ["tests*", "webhook_app*"]
 
 [tool.ruff]
