@@ -51,7 +51,7 @@ services:
     buildCommand: |
       pip install --upgrade pip uv
       uv pip install --system -e .
-    startCommand: gunicorn agents.webhook:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn agents.webhook:app --bind 0.0.0.0:$PORT --timeout 120 --preload
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

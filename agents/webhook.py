@@ -1,8 +1,12 @@
 """LINE Webhook — receives messages and replies via QueryAgent.
 
+Uses Push API (not Reply API) because the agent takes 5-15 seconds
+to respond, and Reply tokens expire in ~30 seconds which is too tight
+when combined with Render free-tier cold starts.
+
 Deployment: Render web service (24/7), separate from the daily cron job.
 
-    gunicorn agents.webhook:app --bind 0.0.0.0:$PORT
+    gunicorn agents.webhook:app --bind 0.0.0.0:$PORT --timeout 120 --preload
 
 Required env vars:
     LINE_CHANNEL_ACCESS_TOKEN
@@ -15,15 +19,18 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 
-import requests
+import requests as http_requests
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 logger = logging.getLogger("journal_tracker")
+logging.basicConfig(level=logging.INFO)
 
 # --- Lazy-init singletons ----------------------------------------------------
 _query_agent = None
+_init_lock = threading.Lock()
 
 
 def _get_agent():
@@ -31,56 +38,80 @@ def _get_agent():
     if _query_agent is not None:
         return _query_agent
 
-    from dotenv import load_dotenv
-    load_dotenv(override=False)
+    with _init_lock:
+        if _query_agent is not None:
+            return _query_agent
 
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = (
-        os.getenv("SUPABASE_SERVICE_ROLE")
-        or os.getenv("SUPABASE_KEY")
-        or os.getenv("SUPABASE_API_KEY")
-    )
+        from dotenv import load_dotenv
+        load_dotenv(override=False)
 
-    if not all([anthropic_key, supabase_url, supabase_key]):
-        logger.error("Missing env vars for QueryAgent")
-        return None
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = (
+            os.getenv("SUPABASE_SERVICE_ROLE")
+            or os.getenv("SUPABASE_KEY")
+            or os.getenv("SUPABASE_API_KEY")
+        )
 
-    from database.supabase_client import SupabaseClient
-    from agents.query_agent import QueryAgent
+        if not all([anthropic_key, supabase_url, supabase_key]):
+            logger.error("Missing env vars for QueryAgent")
+            return None
 
-    db = SupabaseClient(supabase_url, supabase_key)
-    _query_agent = QueryAgent(anthropic_key, db)
-    logger.info("QueryAgent initialized")
-    return _query_agent
+        from database.supabase_client import SupabaseClient
+        from agents.query_agent import QueryAgent
+
+        db = SupabaseClient(supabase_url, supabase_key)
+        _query_agent = QueryAgent(anthropic_key, db)
+        logger.info("QueryAgent initialized")
+        return _query_agent
 
 
-def _reply(reply_token: str, text: str) -> bool:
-    """Reply to a LINE message using the Reply API."""
+def _push_message(user_id: str, text: str) -> bool:
+    """Send a message via LINE Push API (no token expiry issue)."""
     token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
     if not token:
+        logger.error("LINE_CHANNEL_ACCESS_TOKEN not set")
         return False
 
     if len(text) > 5000:
         text = text[:4950] + "\n\n... (回覆過長，已截斷)"
 
     try:
-        r = requests.post(
-            "https://api.line.me/v2/bot/message/reply",
+        r = http_requests.post(
+            "https://api.line.me/v2/bot/message/push",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}",
             },
             json={
-                "replyToken": reply_token,
+                "to": user_id,
                 "messages": [{"type": "text", "text": text}],
             },
             timeout=30,
         )
-        return r.status_code == 200
-    except Exception as e:
-        logger.error(f"Reply failed: {e}")
+        if r.status_code == 200:
+            logger.info(f"Push message sent to {user_id[:8]}...")
+            return True
+        logger.error(f"Push failed ({r.status_code}): {r.text[:300]}")
         return False
+    except Exception as e:
+        logger.error(f"Push failed: {e}")
+        return False
+
+
+def _handle_message(user_id: str, text: str) -> None:
+    """Process message in a background thread (non-blocking)."""
+    agent = _get_agent()
+    if not agent:
+        _push_message(user_id, "系統尚未就緒，請稍後再試。")
+        return
+
+    try:
+        answer = agent.ask(text)
+        _push_message(user_id, answer)
+    except Exception as e:
+        logger.error(f"Agent error: {e}", exc_info=True)
+        _push_message(user_id, f"查詢時發生錯誤：{str(e)[:200]}")
 
 
 # --- Routes ------------------------------------------------------------------
@@ -91,24 +122,19 @@ def webhook():
 
     for event in data.get("events", []):
         event_type = event.get("type")
-        reply_token = event.get("replyToken")
+        user_id = event.get("source", {}).get("userId")
 
-        if event_type == "message" and reply_token:
+        if event_type == "message" and user_id:
             text = event.get("message", {}).get("text", "").strip()
             if not text:
                 continue
 
-            agent = _get_agent()
-            if not agent:
-                _reply(reply_token, "系統尚未就緒，請稍後再試。")
-                continue
-
-            try:
-                answer = agent.ask(text)
-                _reply(reply_token, answer)
-            except Exception as e:
-                logger.error(f"Agent error: {e}", exc_info=True)
-                _reply(reply_token, f"查詢時發生錯誤：{str(e)[:200]}")
+            # Process in background thread so we return 200 immediately
+            # (LINE expects a response within a few seconds)
+            thread = threading.Thread(
+                target=_handle_message, args=(user_id, text), daemon=True
+            )
+            thread.start()
 
     return jsonify({"status": "ok"})
 
