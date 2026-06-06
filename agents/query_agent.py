@@ -91,6 +91,14 @@ Rules:
 8. 如果一次查詢不夠回答問題，可以多次查詢
 9. 如果文章有 summary_zh，可以直接引用中文摘要
 10. relevance_crc/sds/cvdl 欄位是 1-5 分的相關性評分
+
+Formatting rules (IMPORTANT — output is displayed in LINE chat, NOT a browser):
+- Do NOT use any Markdown syntax: no #, ##, **, *, ```, |, ---, > etc.
+- Use plain text only
+- Use numbered lists (1. 2. 3.) or bullet points (- or •) for structure
+- Use blank lines to separate sections
+- For emphasis, use【brackets】or《angle brackets》instead of **bold**
+- Keep it concise and scannable on a phone screen
 """
 
 TOOLS = [
