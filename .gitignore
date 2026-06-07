@@ -47,6 +47,7 @@ htmlcov/
 # Runtime
 user_ids.json
 *.sqlite
+*.db
 
 # 訂閱者真實資料(v1 遺留,含 Line User ID;v2 不再使用)
 config/subscribers.json
