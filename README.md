@@ -63,7 +63,7 @@ uv venv
 uv pip install -e ".[dev]"
 source .venv/bin/activate
 
-pytest tests/                     # 60 個測試,約 7 秒
+pytest tests/                     # 75 個測試,約 7 秒
 python main.py                    # 跑一次完整 pipeline
 ```
 
@@ -102,22 +102,36 @@ python main.py                    # 跑一次完整 pipeline
 - **任一 stage 失敗** → exit code 1,Render dashboard 會標紅,但過程已盡力跑完。
 - **全部 stage 成功** → exit code 0。
 
+## Query Agent — LINE 自然語言查詢
+
+除了每日推播 pipeline,系統另有一個獨立的 **Query Agent**,部署為 Render Web Service (`medfeed-query-agent`)。
+
+使用者在 LINE 聊天室用自然語言提問(例如「最近有哪些 CRC 高分論文?」),agent 會：
+
+1. 透過 Claude tool_use 將問題轉成 SQL
+2. 透過 Supabase read-only RPC 查詢資料庫
+3. 將結果整理成純文字回覆（LINE 不渲染 Markdown）
+
+架構：`agents/query_agent.py`（agentic loop）+ `agents/webhook.py`（Flask webhook，使用 Push API + background thread 避免 Render free tier cold start 導致 reply token 過期）。
+
 ## 專案結構
 
 ```
 main.py                      # Pipeline 進入點
 config/     settings.py      # 型別化 env 載入器(啟動時 fail-fast)
             journals.json    # 追蹤的期刊清單
+agents/                      # LINE Query Agent(自然語言 → SQL → 回覆)
 scrapers/                    # BaseScraper + RSS / IEEE / Elsevier / PubMed
 llm/                         # Claude 客戶端 + prompt + 結果解析
 services/                    # 每個 pipeline stage 一個 class
                              # (Fetcher, LLM, LineAlert, Notifier, Cleanup)
 notifier/                    # LineNotifier, TelegramNotifier, formatter
 sync/                        # Notion 鏡射
-database/                    # Supabase 封裝
-tests/                       # 60 個單元測試,不呼叫任何外部 API
+database/                    # Supabase 封裝 + schema / migration SQL
+utils/                       # logger
+tests/                       # 75 個單元測試,不呼叫任何外部 API
 scripts/                     # 開發用小工具(sync_requirements …)
-.github/workflows/           # CI(lint + 型別檢查 + 測試),每次 push 觸發
+.github/workflows/           # CI(lint + 型別檢查 + 測試)、integration、manual-run
 ```
 
 ## License
