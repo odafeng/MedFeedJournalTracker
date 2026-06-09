@@ -61,5 +61,14 @@ services:
         sync: false
       - key: LINE_CHANNEL_ACCESS_TOKEN
         sync: false
+      # Enables X-Line-Signature verification (blocks anonymous webhook abuse).
+      - key: LINE_CHANNEL_SECRET
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Model for the NL->SQL query agent (defaults to claude-sonnet-4-6).
+      - key: QUERY_LLM_MODEL
+        value: claude-sonnet-4-6
+      # Set to "true" to only answer users in the subscribers table.
+      - key: LINE_RESTRICT_TO_SUBSCRIBERS
+        value: "false"

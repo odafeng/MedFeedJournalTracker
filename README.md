@@ -85,6 +85,9 @@ python main.py                    # 跑一次完整 pipeline
 | `TELEGRAM_TOKEN`、`TELEGRAM_CHAT_ID` | ✅ | Telegram 操作者 digest |
 | `ANTHROPIC_API_KEY` | ✅ | LLM 摘要與評分 |
 | `LINE_CHANNEL_ACCESS_TOKEN` | 選填 | 啟用 LINE 快訊;訂閱者來源是 DB |
+| `LINE_CHANNEL_SECRET` | 建議 | Query Agent webhook 簽章驗證,擋匿名濫用(燒 API 額度) |
+| `QUERY_LLM_MODEL` | 選填 | Query Agent 用的模型,預設 `claude-sonnet-4-6` |
+| `LINE_RESTRICT_TO_SUBSCRIBERS` | 選填 | 設 `true` 時只回覆 `subscribers` 表內的使用者 |
 | `NOTION_TOKEN` + `NOTION_DATABASE_ID` | 選填 | 啟用 Notion 鏡射 |
 | `PUBMED_API_KEY` | 選填 | 提高 PubMed rate limit |
 | `LLM_MODEL`、`LLM_DAILY_BUDGET`、`DAYS_BACK`、`LOG_LEVEL` | 選填 | 皆有預設值 |
@@ -113,6 +116,10 @@ python main.py                    # 跑一次完整 pipeline
 3. 將結果整理成純文字回覆（LINE 不渲染 Markdown）
 
 架構：`agents/query_agent.py`（agentic loop）+ `agents/webhook.py`（Flask webhook，使用 Push API + background thread 避免 Render free tier cold start 導致 reply token 過期）。
+
+安全性：webhook 會驗證 LINE 的 `X-Line-Signature`（需設 `LINE_CHANNEL_SECRET`）、做 per-user 頻率限制；底層唯讀 SQL 透過 `execute_readonly_query` RPC 執行,只允許單一 SELECT、擋掉疊加語句／危險函式／PII 與系統表（見 `database/migrations/2026_06_09_search_and_rpc_hardening.sql`）。檢索效能由 `pg_trgm` GIN 索引支撐。
+
+補摘要:歷史文章若缺 `summary_zh` 會在中文檢索中隱形,可用 `python -m scripts.backfill_summaries --all` 補齊(會消耗 Anthropic 額度)。
 
 ## 專案結構
 
