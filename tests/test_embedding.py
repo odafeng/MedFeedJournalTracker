@@ -46,18 +46,20 @@ def _agent_with_embedder():
     return agent
 
 
-def test_semantic_search_tool():
+def test_semantic_search_tool_uses_hybrid():
     agent = _agent_with_embedder()
     agent.embedder.embed.return_value = [0.1] * 1536
-    agent.db.match_articles.return_value = [
-        {"title": "Vector paper", "similarity": 0.91, "doi": "10.1/v"}
+    agent.db.hybrid_search.return_value = [
+        {"title": "Vector paper", "score": 0.04, "doi": "10.1/v"}
     ]
 
     out = agent._run_tool("semantic_search", {"query": "手術影像", "match_count": 5})
 
     agent.embedder.embed.assert_called_once_with("手術影像")
-    agent.db.match_articles.assert_called_once()
-    assert agent.db.match_articles.call_args.kwargs["match_count"] == 5
+    agent.db.hybrid_search.assert_called_once()
+    # query text + embedding both passed to the hybrid RPC
+    assert agent.db.hybrid_search.call_args.args[0] == "手術影像"
+    assert agent.db.hybrid_search.call_args.kwargs["match_count"] == 5
     assert json.loads(out)[0]["title"] == "Vector paper"
 
 

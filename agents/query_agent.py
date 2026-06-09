@@ -148,10 +148,11 @@ SQL_TOOL = {
 SEMANTIC_TOOL = {
     "name": "semantic_search",
     "description": (
-        "Find articles by meaning (vector similarity) rather than keywords. "
-        "Best for conceptual/topical questions where wording or language may not "
-        "match the stored text. Returns the most similar articles as a JSON array "
-        "with title, summary_zh, doi, url, journal_name and a similarity score."
+        "Find articles by meaning using HYBRID search — it fuses vector "
+        "similarity (catches paraphrases / cross-language) with keyword matching "
+        "(catches exact terms) via reciprocal rank fusion. Best for "
+        "conceptual/topical questions. Returns the best-matching articles as a "
+        "JSON array with title, summary_zh, doi, url, journal_name and a score."
     ),
     "input_schema": {
         "type": "object",
@@ -196,10 +197,10 @@ class QueryAgent:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
 
     def _semantic_search(self, query: str, match_count: int = 10) -> str:
-        """Embed the query and return the most similar articles via pgvector."""
+        """Hybrid search: embed the query, then RRF-fuse vector + keyword results."""
         try:
             vector = self.embedder.embed(query)
-            rows = self.db.match_articles(vector, match_count=match_count)
+            rows = self.db.hybrid_search(query, vector, match_count=match_count)
             result_str = json.dumps(rows, ensure_ascii=False, default=str)
             if len(result_str) > 8000:
                 result_str = result_str[:8000] + "\n... (truncated)"
@@ -219,16 +220,35 @@ class QueryAgent:
             return self._semantic_search(query, match_count=count)
         return json.dumps({"error": f"unknown tool: {name}"}, ensure_ascii=False)
 
-    def ask(self, question: str, history: list[dict] | None = None) -> str:
+    def ask(
+        self,
+        question: str,
+        history: list[dict] | None = None,
+        stats: dict | None = None,
+    ) -> str:
         """Run the agentic loop. Returns the final text answer.
 
         `history` is an optional list of prior {role, content} text turns (from
         earlier in the same LINE conversation) so the user can ask follow-ups
         like 「那第二篇呢?」. Only plain user/assistant text turns should be
         passed — not the intermediate tool_use/tool_result blocks.
+
+        `stats`, if given, is filled in-place with analytics for this call:
+        tools_used, turns, input_tokens, output_tokens.
         """
         messages: list[dict] = list(history or [])
         messages.append({"role": "user", "content": question})
+
+        tools_used: list[str] = []
+        in_tok = out_tok = 0
+
+        def _finish(answer: str, turns: int) -> str:
+            if stats is not None:
+                stats["tools_used"] = tools_used
+                stats["turns"] = turns
+                stats["input_tokens"] = in_tok
+                stats["output_tokens"] = out_tok
+            return answer
 
         for turn in range(self.max_turns):
             response = self.client.messages.create(
@@ -245,16 +265,21 @@ class QueryAgent:
                 messages=messages,
             )
 
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                in_tok += getattr(usage, "input_tokens", 0) or 0
+                out_tok += getattr(usage, "output_tokens", 0) or 0
+
             if response.stop_reason == "end_turn":
-                return "".join(
-                    b.text for b in response.content if b.type == "text"
-                )
+                answer = "".join(b.text for b in response.content if b.type == "text")
+                return _finish(answer, turn + 1)
 
             messages.append({"role": "assistant", "content": response.content})
             tool_results = []
 
             for block in response.content:
                 if block.type == "tool_use":
+                    tools_used.append(block.name)
                     result = self._run_tool(block.name, block.input)
                     logger.info(f"[Agent] Result: {result[:200]}")
 
@@ -266,4 +291,4 @@ class QueryAgent:
 
             messages.append({"role": "user", "content": tool_results})
 
-        return "抱歉，查詢過程太長了，請嘗試更具體的問題。"
+        return _finish("抱歉，查詢過程太長了，請嘗試更具體的問題。", self.max_turns)

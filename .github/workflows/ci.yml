@@ -31,13 +31,13 @@ jobs:
           source .venv/bin/activate
           ruff check --select E,F,I --ignore E501 \
             --exclude webhook_app --exclude webhook_service.py \
-            config database llm notifier scrapers services sync tests main.py
+            agents config database llm notifier scrapers services sync scripts tests main.py
 
       - name: Type check (mypy, lenient)
         run: |
           source .venv/bin/activate
           mypy --ignore-missing-imports --check-untyped-defs=false \
-            config database llm notifier scrapers services sync main.py || true
+            agents config database llm notifier scrapers services sync scripts main.py || true
 
       - name: Run tests
         run: |

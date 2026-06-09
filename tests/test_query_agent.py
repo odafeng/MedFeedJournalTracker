@@ -65,6 +65,27 @@ def test_ask_prepends_history():
     assert sent[-1]["content"] == "那第二篇呢？"
 
 
+def test_ask_fills_stats():
+    agent = _make_agent()
+    agent.db.client.rpc.return_value.execute.return_value.data = [{"x": 1}]
+    agent.client.messages.create.side_effect = [
+        SimpleNamespace(
+            stop_reason="tool_use", content=[_tool_block("SELECT 1")],
+            usage=SimpleNamespace(input_tokens=100, output_tokens=20),
+        ),
+        SimpleNamespace(
+            stop_reason="end_turn", content=[_text_block("done")],
+            usage=SimpleNamespace(input_tokens=50, output_tokens=10),
+        ),
+    ]
+    stats: dict = {}
+    agent.ask("q", stats=stats)
+    assert stats["tools_used"] == ["execute_sql"]
+    assert stats["turns"] == 2
+    assert stats["input_tokens"] == 150
+    assert stats["output_tokens"] == 30
+
+
 def test_execute_sql_serializes_error():
     agent = _make_agent()
     agent.db.client.rpc.side_effect = RuntimeError("boom")
