@@ -101,9 +101,14 @@ def _push_message(user_id: str, text: str) -> bool:
 
 def _handle_message(user_id: str, text: str) -> None:
     """Process message in a background thread (non-blocking)."""
+    # Immediate acknowledgement so the user knows the query was received.
+    # The agent itself takes 5-15s; without this the chat looks dead and the
+    # user can't tell whether the message went through.
+    _push_message(user_id, "🔍 收到您的問題，搜尋中，請稍候…")
+
     agent = _get_agent()
     if not agent:
-        _push_message(user_id, "系統尚未就緒，請稍後再試。")
+        _push_message(user_id, "⚠️ 系統尚未就緒，請稍後再試。")
         return
 
     try:
@@ -111,7 +116,7 @@ def _handle_message(user_id: str, text: str) -> None:
         _push_message(user_id, answer)
     except Exception as e:
         logger.error(f"Agent error: {e}", exc_info=True)
-        _push_message(user_id, f"查詢時發生錯誤：{str(e)[:200]}")
+        _push_message(user_id, f"⚠️ 查詢時發生錯誤，請稍後再試。\n（{str(e)[:150]}）")
 
 
 # --- Routes ------------------------------------------------------------------
