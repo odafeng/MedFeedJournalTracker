@@ -87,14 +87,18 @@ already set stay (TELEGRAM_TOKEN, TELEGRAM_CHAT_ID). Add the new ones:
 | `ANTHROPIC_API_KEY` | `sk-ant-api03-...` | console.anthropic.com |
 | `LLM_MODEL` | `claude-sonnet-4-5-20250929` | Default |
 | `LLM_DAILY_BUDGET` | `50` | Cap on articles/run |
+| `LINE_CHANNEL_ACCESS_TOKEN` | (channel access token) | LINE alerts (multi-subscriber push) |
+| `OPENAI_API_KEY` | `sk-proj-...` | (Optional) builds embeddings for semantic search |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | (Optional) default |
 | `PUBMED_API_KEY` | (existing) | NCBI account |
 | `NOTION_TOKEN` | (from step above) | Notion integrations |
 | `NOTION_DATABASE_ID` | `d2b8807f-8d79-42e0-9fc5-542b5723426b` | From Part 2 |
 | `LOG_LEVEL` | `INFO` | |
 | `DAYS_BACK` | `7` | |
 
-**Remove** `LINE_CHANNEL_ACCESS_TOKEN` — no longer used (notifier code keeps it
-as an optional legacy path, but the default pipeline skips it).
+`LINE_CHANNEL_ACCESS_TOKEN` is required for the LINE raw-alert channel (push to
+subscribers). If `OPENAI_API_KEY` is set, the cron's embedding stage keeps new
+articles searchable by the Query Agent's semantic search.
 
 **Update** build command in Render to:
 ```
@@ -133,9 +137,52 @@ cp .env.example .env.local
 uv venv
 uv pip install -e ".[dev]"
 source .venv/bin/activate
-pytest tests/         # Should be 46 passed
+pytest tests/         # full unit-test suite (no external API calls)
 python main.py        # Full pipeline run against production Supabase
 ```
+
+---
+
+## Part 4.5: Query Agent web service (LINE natural-language queries)
+
+Besides the daily cron, a second Render service — **`medfeed-query-agent`** (a
+24/7 web service) — lets users query the DB in natural language from LINE. It is
+defined in `render.yaml`. See [`docs/adr/`](docs/adr/) for the design rationale.
+
+**Start command:**
+```
+gunicorn agents.webhook:app --bind 0.0.0.0:$PORT --timeout 120 --preload
+```
+
+**Environment variables** (Render dashboard → `medfeed-query-agent` → Environment):
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE` | ✅ | DB access |
+| `ANTHROPIC_API_KEY` | ✅ | The agent's LLM |
+| `LINE_CHANNEL_ACCESS_TOKEN` | ✅ | Push replies back to LINE |
+| `LINE_CHANNEL_SECRET` | Recommended | Verifies `X-Line-Signature` — blocks anonymous webhook abuse |
+| `OPENAI_API_KEY` | Optional | Enables `semantic_search` (hybrid keyword+vector) |
+| `QUERY_LLM_MODEL` | Optional | Default `claude-sonnet-4-6` |
+| `LINE_RESTRICT_TO_SUBSCRIBERS` | Optional | `true` = only answer users in `subscribers` |
+
+**LINE setup:** in the LINE Developers console, set the Messaging API webhook URL
+to `https://<your-service>.onrender.com/webhook` and enable "Use webhook".
+
+**Keep it warm:** the Render free tier spins down after ~15 min; the cold start
+exceeds LINE's webhook timeout and silently drops messages. Mitigate with
+`.github/workflows/keep-alive.yml` (pings `/health`) and/or an external uptime
+monitor (UptimeRobot, 5 min). See ADR-0003.
+
+**One-off data jobs** (GitHub Actions → Run workflow). These need repo secrets
+`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE` (and `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`):
+- **Backfill Summaries** — fills missing `summary_zh` for old articles.
+- **Backfill Embeddings** — embeds articles for semantic search (run once after
+  enabling `OPENAI_API_KEY`).
+
+**Migrations:** SQL under `database/migrations/` (RPCs, `pg_trgm` indexes,
+`pgvector` column + `match_articles` / `hybrid_search_articles`) is applied to
+Supabase; the files are kept in the repo for reference / re-deployment.
 
 ---
 

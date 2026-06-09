@@ -20,6 +20,8 @@ Query Agent 原本只靠 SQL `ILIKE '%關鍵字%'`（後加 `pg_trgm` GIN 索引
 - **OpenAI `text-embedding-3-small`（1536 維）** 為每篇文章（title + summary_zh + abstract）建立向量；查詢時也即時嵌入問題。
 - **pgvector**：`articles.embedding vector(1536)` 欄位 + **HNSW**（cosine）索引 + `match_articles(query_embedding, match_count)` RPC（`service_role` only）。見 `database/migrations/2026_06_09_pgvector_semantic_search.sql`。
 - Query Agent 多一個 **`semantic_search` 工具**；agent 自行決定概念題用語意搜尋、精確條件用 SQL。
+- 後續再升級為**混合檢索（hybrid）**：`hybrid_search_articles` RPC 用 RRF（Reciprocal Rank Fusion）融合向量相似度與 trigram 關鍵字排名——關鍵字臂補捉確切詞、向量臂補捉換句/跨語言。`semantic_search` 工具底層即呼叫此 RPC。
+- 另記錄查詢分析：每次 LINE 查詢寫入 `query_logs`（問題、用了哪些工具、回合數、token、延遲、有無結果），供調 prompt 與發現查無結果的缺口。
 - 嵌入維護：每日 pipeline 一個 capped stage 嵌入新文章；既有文章用 `scripts/backfill_embeddings.py` 或「Backfill Embeddings」workflow 一次補齊。
 
 **優雅降級**：未設 `OPENAI_API_KEY` 時不註冊 `semantic_search` 工具，自動退回 SQL/ILIKE，功能不受影響。

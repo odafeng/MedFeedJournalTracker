@@ -140,7 +140,9 @@ python main.py                    # 跑一次完整 pipeline
 
 補摘要:歷史文章若缺 `summary_zh` 會在中文檢索中隱形,可用 `python -m scripts.backfill_summaries --all` 補齊(會消耗 Anthropic 額度)。
 
-語意搜尋(選用):設定 `OPENAI_API_KEY` 後,系統會用 OpenAI `text-embedding-3-small` 為文章建立向量(pgvector),Query Agent 就能用 `semantic_search` 做語意檢索(不受用字/語言限制,比 ILIKE 更準)。首次需用 `python -m scripts.backfill_embeddings` 或 GitHub Actions 的「Backfill Embeddings」把既有文章嵌入;之後每日 pipeline 會自動嵌入新文章。沒設 key 時自動退回純 SQL/ILIKE,功能不受影響。
+語意 / 混合搜尋(選用):設定 `OPENAI_API_KEY` 後,系統會用 OpenAI `text-embedding-3-small` 為文章建立向量(pgvector),Query Agent 的 `semantic_search` 工具會做**混合檢索**——用 RRF 融合向量相似度與 trigram 關鍵字排名(`hybrid_search_articles` RPC),兼顧語意與確切詞。首次需用 `python -m scripts.backfill_embeddings` 或 GitHub Actions 的「Backfill Embeddings」把既有文章嵌入;之後每日 pipeline 會自動嵌入新文章。沒設 key 時自動退回純 SQL/ILIKE,功能不受影響。
+
+查詢分析:每次 LINE 查詢會記一筆到 `query_logs`(問題、用了哪些工具、回合、token、延遲、有無結果),方便回頭看使用者都問什麼、哪些查無結果,據此調 prompt 或補資料。
 
 ## 專案結構
 

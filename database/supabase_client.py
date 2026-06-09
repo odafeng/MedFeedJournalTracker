@@ -236,6 +236,28 @@ class SupabaseClient:
         ).execute()
         return resp.data or []
 
+    def hybrid_search(
+        self, query_text: str, embedding: list[float], match_count: int = 10
+    ) -> list[dict[str, Any]]:
+        """Hybrid (vector + keyword RRF) search via the hybrid_search_articles RPC."""
+        resp = self.client.rpc(
+            "hybrid_search_articles",
+            {
+                "query_text": query_text,
+                "query_embedding": embedding,
+                "match_count": match_count,
+            },
+        ).execute()
+        return resp.data or []
+
+    # ---- query analytics ----
+    def log_query(self, **fields: Any) -> None:
+        """Best-effort: record one LINE query for analytics. Never raises."""
+        try:
+            self.client.table("query_logs").insert(fields).execute()
+        except Exception as e:
+            logger.warning(f"Failed to log query: {e}")
+
     # ---- interests ----
     def get_active_interests(self) -> list[dict[str, Any]]:
         return (

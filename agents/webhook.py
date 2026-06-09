@@ -108,8 +108,8 @@ def _init_clients():
             logger.error("Missing env vars for QueryAgent")
             return None, None
 
-        from database.supabase_client import SupabaseClient
         from agents.query_agent import QueryAgent
+        from database.supabase_client import SupabaseClient
 
         _db_client = SupabaseClient(supabase_url, supabase_key)
 
@@ -234,14 +234,32 @@ def _handle_message(user_id: str, text: str) -> None:
         _push_message(user_id, "ℹ️ 您尚未訂閱本服務，目前無法使用查詢功能。")
         return
 
+    stats: dict = {}
+    answer = ""
+    error = None
+    t0 = time.time()
     try:
         history = _get_history(user_id)
-        answer = agent.ask(text, history=history)
+        answer = agent.ask(text, history=history, stats=stats)
         _push_message(user_id, answer)
         _append_history(user_id, text, answer)
     except Exception as e:
+        error = str(e)
         logger.error(f"Agent error: {e}", exc_info=True)
         _push_message(user_id, f"⚠️ 查詢時發生錯誤，請稍後再試。\n（{str(e)[:150]}）")
+    finally:
+        # Best-effort analytics (never breaks the reply).
+        db.log_query(
+            line_user_id=user_id,
+            question=text,
+            tools_used=stats.get("tools_used"),
+            turns=stats.get("turns"),
+            input_tokens=stats.get("input_tokens"),
+            output_tokens=stats.get("output_tokens"),
+            latency_ms=int((time.time() - t0) * 1000),
+            answer_chars=len(answer),
+            error=(error[:500] if error else None),
+        )
 
 
 # --- Routes ------------------------------------------------------------------
