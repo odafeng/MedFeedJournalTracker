@@ -9,7 +9,9 @@ Usage:
     python -m scripts.backfill_summaries --limit 100
     python -m scripts.backfill_summaries --all          # ignore the limit, loop until done
 
-Env vars: same as the pipeline (SUPABASE_*, ANTHROPIC_API_KEY, LLM_MODEL).
+Env (only what this task needs — not the full pipeline config):
+    SUPABASE_URL, SUPABASE_SERVICE_ROLE (or SUPABASE_KEY / SUPABASE_API_KEY),
+    ANTHROPIC_API_KEY, optional LLM_MODEL.
 Run it a few times (or with --all) to clear the whole backlog; each article
 is one cheap Sonnet call.
 """
@@ -17,10 +19,10 @@ is one cheap Sonnet call.
 from __future__ import annotations
 
 import argparse
-import logging
+import os
 import sys
 
-from config import Settings
+from config.settings import _load_env_files
 from database.supabase_client import SupabaseClient
 from llm.summarizer import LLMSummarizer
 from utils.logger import setup_logger
@@ -32,11 +34,33 @@ def main() -> int:
     parser.add_argument("--all", action="store_true", help="Keep looping until no rows remain")
     args = parser.parse_args()
 
-    settings = Settings.from_env()
-    logger = setup_logger(level=settings.log_level)
+    _load_env_files()
+    logger = setup_logger(level=os.getenv("LOG_LEVEL", "INFO"))
 
-    db = SupabaseClient(settings.supabase_url, settings.supabase_key)
-    summarizer = LLMSummarizer(api_key=settings.anthropic_api_key, model=settings.llm_model)
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = (
+        os.getenv("SUPABASE_SERVICE_ROLE")
+        or os.getenv("SUPABASE_KEY")
+        or os.getenv("SUPABASE_API_KEY")
+    )
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+
+    missing = [
+        name for name, val in (
+            ("SUPABASE_URL", supabase_url),
+            ("SUPABASE_SERVICE_ROLE", supabase_key),
+            ("ANTHROPIC_API_KEY", anthropic_key),
+        )
+        if not val
+    ]
+    if missing:
+        logger.error(f"Missing required env vars: {', '.join(missing)}. Aborting.")
+        return 1
+
+    db = SupabaseClient(supabase_url, supabase_key)
+    summarizer = LLMSummarizer(
+        api_key=anthropic_key, model=os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
+    )
 
     interests = db.get_active_interests()
     if not interests:
