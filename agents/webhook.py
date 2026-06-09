@@ -52,6 +52,36 @@ _RATE_MIN_INTERVAL_SEC = 3       # min seconds between consecutive queries
 _rate_lock = threading.Lock()
 _user_hits: dict[str, deque] = defaultdict(deque)
 
+# --- Conversation memory (in-memory, per-user, TTL) --------------------------
+# Lets users ask follow-ups ("那第二篇呢?"). We only keep plain text turns, not
+# the agent's intermediate tool_use/tool_result blocks. Single worker, so a
+# module dict is fine; it resets on restart, which is acceptable.
+_HISTORY_TTL_SEC = 1800          # forget a conversation after 30 min idle
+_HISTORY_MAX_TURNS = 6           # keep the last 6 messages (3 Q&A pairs)
+_history_lock = threading.Lock()
+_conversations: dict[str, dict] = {}
+
+
+def _get_history(user_id: str) -> list[dict]:
+    now = time.time()
+    with _history_lock:
+        conv = _conversations.get(user_id)
+        if not conv or now - conv["ts"] > _HISTORY_TTL_SEC:
+            return []
+        return list(conv["turns"])
+
+
+def _append_history(user_id: str, question: str, answer: str) -> None:
+    now = time.time()
+    with _history_lock:
+        conv = _conversations.get(user_id)
+        if not conv or now - conv["ts"] > _HISTORY_TTL_SEC:
+            conv = {"ts": now, "turns": deque(maxlen=_HISTORY_MAX_TURNS)}
+        conv["ts"] = now
+        conv["turns"].append({"role": "user", "content": question})
+        conv["turns"].append({"role": "assistant", "content": answer})
+        _conversations[user_id] = conv
+
 
 def _init_clients():
     """Lazily build the Supabase client + QueryAgent (shared singletons)."""
@@ -190,8 +220,10 @@ def _handle_message(user_id: str, text: str) -> None:
         return
 
     try:
-        answer = agent.ask(text)
+        history = _get_history(user_id)
+        answer = agent.ask(text, history=history)
         _push_message(user_id, answer)
+        _append_history(user_id, text, answer)
     except Exception as e:
         logger.error(f"Agent error: {e}", exc_info=True)
         _push_message(user_id, f"⚠️ 查詢時發生錯誤，請稍後再試。\n（{str(e)[:150]}）")

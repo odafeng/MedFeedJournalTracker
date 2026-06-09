@@ -102,6 +102,10 @@ Rules:
 8. 如果一次查詢不夠回答問題，可以多次查詢
 9. 如果文章有 summary_zh，可以直接引用中文摘要
 10. relevance_crc/sds/cvdl 欄位是 1-5 分的相關性評分
+11. 列出文章時附上可點閱的連結，方便使用者直接打開原文：
+    優先用 url 欄位；若 url 為空則用 https://doi.org/<doi>。SELECT 時記得一併取出 url 和 doi。
+12. 這是多輪對話。若使用者用「那篇」「第二篇」「它的結論」等指代，請根據前面對話脈絡理解，
+    必要時沿用上一輪查到的文章再追加查詢。
 
 Formatting rules (IMPORTANT — output is displayed in LINE chat, NOT a browser):
 - Do NOT use any Markdown syntax: no #, ##, **, *, ```, |, ---, > etc.
@@ -159,9 +163,16 @@ class QueryAgent:
         except Exception as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
 
-    def ask(self, question: str) -> str:
-        """Run the agentic loop. Returns the final text answer."""
-        messages = [{"role": "user", "content": question}]
+    def ask(self, question: str, history: list[dict] | None = None) -> str:
+        """Run the agentic loop. Returns the final text answer.
+
+        `history` is an optional list of prior {role, content} text turns (from
+        earlier in the same LINE conversation) so the user can ask follow-ups
+        like 「那第二篇呢?」. Only plain user/assistant text turns should be
+        passed — not the intermediate tool_use/tool_result blocks.
+        """
+        messages: list[dict] = list(history or [])
+        messages.append({"role": "user", "content": question})
 
         for turn in range(self.max_turns):
             response = self.client.messages.create(
