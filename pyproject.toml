@@ -24,6 +24,8 @@ dependencies = [
   "python-dotenv>=1.0.0",
   # LLM
   "anthropic>=0.40.0",
+  # Embeddings (semantic search)
+  "openai>=1.40.0",
   # Notion sync
   "notion-client>=2.2.1",
   # Reliability

@@ -210,6 +210,32 @@ class SupabaseClient:
             "llm_model": llm_model,
         }).eq("id", article_id).execute()
 
+    # ---- embeddings (semantic search) ----
+    def get_articles_without_embedding(self, limit: int) -> list[dict[str, Any]]:
+        """Articles that still need a vector embedding. Newest first."""
+        return (
+            self.client.table("articles")
+            .select("id, title, summary_zh, abstract")
+            .is_("embedding", "null")
+            .order("discovered_at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+        )
+
+    def update_embedding(self, article_id: str, embedding: list[float]) -> None:
+        self.client.table("articles").update({"embedding": embedding}).eq(
+            "id", article_id
+        ).execute()
+
+    def match_articles(self, embedding: list[float], match_count: int = 10) -> list[dict[str, Any]]:
+        """Vector similarity search via the match_articles RPC."""
+        resp = self.client.rpc(
+            "match_articles",
+            {"query_embedding": embedding, "match_count": match_count},
+        ).execute()
+        return resp.data or []
+
     # ---- interests ----
     def get_active_interests(self) -> list[dict[str, Any]]:
         return (

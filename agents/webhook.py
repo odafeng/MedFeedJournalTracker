@@ -112,7 +112,22 @@ def _init_clients():
         from agents.query_agent import QueryAgent
 
         _db_client = SupabaseClient(supabase_url, supabase_key)
-        _query_agent = QueryAgent(anthropic_key, _db_client)
+
+        # Enable semantic (vector) search only if an OpenAI key is configured.
+        embedder = None
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if openai_key:
+            try:
+                from llm.embedder import OpenAIEmbedder
+                embedder = OpenAIEmbedder(
+                    openai_key,
+                    model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
+                )
+                logger.info("Semantic search enabled (OpenAI embeddings)")
+            except Exception as e:
+                logger.error(f"Failed to init embedder, falling back to SQL-only: {e}")
+
+        _query_agent = QueryAgent(anthropic_key, _db_client, embedder=embedder)
         logger.info("QueryAgent initialized")
         return _query_agent, _db_client
 

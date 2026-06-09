@@ -107,6 +107,13 @@ Rules:
 12. 這是多輪對話。若使用者用「那篇」「第二篇」「它的結論」等指代，請根據前面對話脈絡理解，
     必要時沿用上一輪查到的文章再追加查詢。
 
+工具選擇：
+- execute_sql：精確條件查詢（時間範圍、分數門檻、特定期刊、數量統計、列清單）用它。
+- semantic_search（若有提供此工具）：概念性／主題式的模糊查詢優先用它
+  （例如「跟手術影像分析相關的文章」「有沒有講腸道菌叢的」）。它用語意向量比對，
+  不受用字與語言限制，通常比 ILIKE 更能命中。可先用 semantic_search 找到候選文章，
+  再視需要用 execute_sql 補充細節（作者、分數、日期等）。
+
 Formatting rules (IMPORTANT — output is displayed in LINE chat, NOT a browser):
 - Do NOT use any Markdown syntax: no #, ##, **, *, ```, |, ---, > etc.
 - Use plain text only
@@ -116,38 +123,63 @@ Formatting rules (IMPORTANT — output is displayed in LINE chat, NOT a browser)
 - Keep it concise and scannable on a phone screen
 """
 
-TOOLS = [
-    {
-        "name": "execute_sql",
-        "description": (
-            "Execute a read-only SQL query against the journal tracker database. "
-            "Only SELECT statements are allowed. Returns results as a JSON array."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "sql": {
-                    "type": "string",
-                    "description": "A SELECT SQL query to execute",
-                },
-                "explanation": {
-                    "type": "string",
-                    "description": "Brief explanation of what this query does",
-                },
+SQL_TOOL = {
+    "name": "execute_sql",
+    "description": (
+        "Execute a read-only SQL query against the journal tracker database. "
+        "Only SELECT statements are allowed. Returns results as a JSON array."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "sql": {
+                "type": "string",
+                "description": "A SELECT SQL query to execute",
             },
-            "required": ["sql"],
+            "explanation": {
+                "type": "string",
+                "description": "Brief explanation of what this query does",
+            },
         },
+        "required": ["sql"],
     },
-]
+}
+
+SEMANTIC_TOOL = {
+    "name": "semantic_search",
+    "description": (
+        "Find articles by meaning (vector similarity) rather than keywords. "
+        "Best for conceptual/topical questions where wording or language may not "
+        "match the stored text. Returns the most similar articles as a JSON array "
+        "with title, summary_zh, doi, url, journal_name and a similarity score."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "The topic/concept to search for (any language).",
+            },
+            "match_count": {
+                "type": "integer",
+                "description": "How many articles to return (default 10).",
+            },
+        },
+        "required": ["query"],
+    },
+}
 
 
 class QueryAgent:
-    """Agentic loop: user question -> Claude generates SQL -> execute -> format answer."""
+    """Agentic loop: user question -> Claude picks a tool -> execute -> format answer."""
 
-    def __init__(self, anthropic_api_key: str, supabase_client) -> None:
+    def __init__(self, anthropic_api_key: str, supabase_client, embedder=None) -> None:
         self.client = Anthropic(api_key=anthropic_api_key)
         self.db = supabase_client
+        self.embedder = embedder
         self.max_turns = 5
+        # Only expose semantic_search when embeddings are configured.
+        self.tools = [SQL_TOOL] + ([SEMANTIC_TOOL] if embedder is not None else [])
 
     def _execute_sql(self, sql: str) -> str:
         """Execute read-only SQL via Supabase RPC function."""
@@ -162,6 +194,30 @@ class QueryAgent:
             return result_str
         except Exception as e:
             return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+    def _semantic_search(self, query: str, match_count: int = 10) -> str:
+        """Embed the query and return the most similar articles via pgvector."""
+        try:
+            vector = self.embedder.embed(query)
+            rows = self.db.match_articles(vector, match_count=match_count)
+            result_str = json.dumps(rows, ensure_ascii=False, default=str)
+            if len(result_str) > 8000:
+                result_str = result_str[:8000] + "\n... (truncated)"
+            return result_str
+        except Exception as e:
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+    def _run_tool(self, name: str, tool_input: dict) -> str:
+        if name == "execute_sql":
+            sql = tool_input.get("sql", "")
+            logger.info(f"[Agent] SQL: {tool_input.get('explanation') or sql[:80]}")
+            return self._execute_sql(sql)
+        if name == "semantic_search" and self.embedder is not None:
+            query = tool_input.get("query", "")
+            count = int(tool_input.get("match_count") or 10)
+            logger.info(f"[Agent] semantic_search: {query[:80]}")
+            return self._semantic_search(query, match_count=count)
+        return json.dumps({"error": f"unknown tool: {name}"}, ensure_ascii=False)
 
     def ask(self, question: str, history: list[dict] | None = None) -> str:
         """Run the agentic loop. Returns the final text answer.
@@ -185,7 +241,7 @@ class QueryAgent:
                     "text": SYSTEM_PROMPT,
                     "cache_control": {"type": "ephemeral"},
                 }],
-                tools=TOOLS,
+                tools=self.tools,
                 messages=messages,
             )
 
@@ -199,11 +255,7 @@ class QueryAgent:
 
             for block in response.content:
                 if block.type == "tool_use":
-                    sql = block.input.get("sql", "")
-                    explanation = block.input.get("explanation", "")
-                    logger.info(f"[Agent] SQL: {explanation or sql[:80]}")
-
-                    result = self._execute_sql(sql)
+                    result = self._run_tool(block.name, block.input)
                     logger.info(f"[Agent] Result: {result[:200]}")
 
                     tool_results.append({

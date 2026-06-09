@@ -107,6 +107,24 @@ def main() -> int:
     else:
         logger.info("LLM disabled; skipping summarization")
 
+    # ---- Stage 2.5: Embeddings for semantic search (optional) ----
+    if settings.embedding_enabled:
+        try:
+            from llm.embedder import OpenAIEmbedder
+            from services.embedding_service import EmbeddingService
+
+            embedder = OpenAIEmbedder(
+                settings.openai_api_key, model=settings.embedding_model
+            )
+            # Cap per run so a fresh DB catches up over a few days rather than
+            # embedding thousands in one cron run; backfill workflow does the rest.
+            EmbeddingService(db, embedder).run(max_articles=500)
+        except Exception as e:
+            logger.error(f"Embedding stage failed (non-fatal): {e}", exc_info=True)
+            stage_errors.append("embedding")
+    else:
+        logger.info("Embeddings disabled (no OPENAI_API_KEY); semantic search off")
+
     # ---- Stage 3: Notion sync (best-effort) ----
     if settings.notion_sync_enabled:
         try:

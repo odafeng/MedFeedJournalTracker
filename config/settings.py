@@ -40,6 +40,10 @@ class Settings:
     llm_model: str = "claude-sonnet-4-5-20250929"
     llm_daily_budget: int = 50
 
+    # OpenAI embeddings (optional — enables semantic/vector search)
+    openai_api_key: Optional[str] = None
+    embedding_model: str = "text-embedding-3-small"
+
     # PubMed (optional)
     pubmed_api_key: Optional[str] = None
 
@@ -62,6 +66,7 @@ class Settings:
     telegram_enabled: bool = True
     notion_sync_enabled: bool = field(init=False)
     line_enabled: bool = field(init=False)
+    embedding_enabled: bool = field(init=False)
 
     def __post_init__(self) -> None:
         # Notion sync is enabled only if both token and DB id are present
@@ -74,6 +79,11 @@ class Settings:
         object.__setattr__(
             self, "line_enabled",
             bool(self.line_channel_access_token),
+        )
+        # Embedding/semantic-search runs only when an OpenAI key is present.
+        object.__setattr__(
+            self, "embedding_enabled",
+            bool(self.openai_api_key),
         )
 
     @classmethod
@@ -109,6 +119,8 @@ class Settings:
             anthropic_api_key=req("ANTHROPIC_API_KEY"),
             llm_model=os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929"),
             llm_daily_budget=int(os.getenv("LLM_DAILY_BUDGET", "50")),
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
             pubmed_api_key=os.getenv("PUBMED_API_KEY"),
             notion_token=os.getenv("NOTION_TOKEN"),
             notion_database_id=os.getenv("NOTION_DATABASE_ID"),

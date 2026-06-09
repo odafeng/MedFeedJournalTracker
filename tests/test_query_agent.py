@@ -6,7 +6,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from agents.query_agent import QueryAgent
+from agents.query_agent import SQL_TOOL, QueryAgent
 
 
 def _text_block(text: str):
@@ -15,7 +15,8 @@ def _text_block(text: str):
 
 def _tool_block(sql: str, block_id: str = "t1"):
     return SimpleNamespace(
-        type="tool_use", id=block_id, input={"sql": sql, "explanation": "test"}
+        type="tool_use", name="execute_sql", id=block_id,
+        input={"sql": sql, "explanation": "test"},
     )
 
 
@@ -23,6 +24,8 @@ def _make_agent():
     agent = QueryAgent.__new__(QueryAgent)  # bypass __init__ (no real API key)
     agent.client = MagicMock()
     agent.db = MagicMock()
+    agent.embedder = None
+    agent.tools = [SQL_TOOL]
     agent.max_turns = 5
     return agent
 
