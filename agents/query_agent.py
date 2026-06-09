@@ -86,7 +86,16 @@ Rules:
 3. 查詢結果太多時用 LIMIT 限制（預設 20）
 4. 善用 JOIN 來取得期刊名稱
 5. 日期欄位用 discovered_at 做時間篩選
-6. 搜尋文章標題/摘要時用 ILIKE '%keyword%'
+6. 【自由文字檢索很重要，務必照做】title 與 abstract 是英文，summary_zh 是繁體中文，
+   使用者通常用中文提問，所以搜尋時一定要跨語言、跨欄位、拆關鍵字：
+   (a) 先把使用者的概念同時想成「中文詞」和「對應的英文詞」。
+       例如「手術影像分析」→ 中文：影像、手術、分割；英文：image, surgical, segmentation, vision。
+   (b) 中文關鍵字去搜 summary_zh；英文關鍵字去搜 title 和 abstract。
+   (c) 全部用 ILIKE '%單一詞%' 並用 OR 串起來，不要拿整串長片語比對
+       （要 summary_zh ILIKE '%影像%' OR title ILIKE '%image%'，
+        不要 title ILIKE '%手術影像分析%'，那樣幾乎一定是 0 筆）。
+   (d) 若第一次查詢 0 筆，放寬關鍵字或換同義詞／上位詞再查一次，不要馬上回「找不到」。
+   (e) 也可用 relevance_sds / relevance_crc / relevance_cvdl 的高分文章輔助召回。
 7. 回答時引用具體數字和文章標題
 8. 如果一次查詢不夠回答問題，可以多次查詢
 9. 如果文章有 summary_zh，可以直接引用中文摘要
