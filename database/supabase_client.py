@@ -84,6 +84,20 @@ class SupabaseClient:
             self.client.table("subscribers").select("*").eq("is_active", True).execute().data
         )
 
+    def is_active_subscriber(self, line_user_id: str) -> bool:
+        """True if this LINE user id maps to an active subscriber."""
+        if not line_user_id:
+            return False
+        resp = (
+            self.client.table("subscribers")
+            .select("id")
+            .eq("line_user_id", line_user_id)
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
+        return bool(resp.data)
+
     # ---- articles ----
     def existing_dois(self, dois: list[str], chunk_size: int = 100) -> set[str]:
         """Batch check: return the subset of `dois` already in DB.
@@ -135,6 +149,22 @@ class SupabaseClient:
             .select("id, title, abstract, journal_id, category, doi, authors, published_date, url")
             .is_("llm_processed_at", "null")
             .order("discovered_at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+        )
+
+    def get_articles_without_summary(self, limit: int) -> list[dict[str, Any]]:
+        """Articles missing a Chinese summary (so they're invisible to ZH search).
+
+        Used by scripts/backfill_summaries.py to fill historical gaps. Oldest
+        first, so a repeated run steadily works through the backlog.
+        """
+        return (
+            self.client.table("articles")
+            .select("id, title, abstract, journal_id, category, doi, authors, published_date, url")
+            .is_("summary_zh", "null")
+            .order("discovered_at", desc=False)
             .limit(limit)
             .execute()
             .data

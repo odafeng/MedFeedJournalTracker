@@ -154,6 +154,20 @@ def main() -> int:
         logger.warning(f"Could not fetch final stats: {e}")
     if stage_errors:
         logger.error(f"Stages with errors: {', '.join(stage_errors)}")
+        # Proactively alert the operator so a silent partial failure doesn't go
+        # unnoticed until someone wonders why no articles showed up.
+        if settings.telegram_enabled:
+            try:
+                alert = (
+                    "🚨 <b>MedFeed pipeline 有 stage 失敗</b>\n"
+                    f"失敗 stage：{', '.join(stage_errors)}\n"
+                    f"時間：{end.isoformat(timespec='seconds')}\n"
+                    f"本次新文章：{len(new_articles)} 篇\n"
+                    "請到 Render dashboard 查看 log。"
+                )
+                TelegramNotifier(settings.telegram_token, settings.telegram_chat_id).send(alert)
+            except Exception as e:
+                logger.warning(f"Could not send failure alert: {e}")
     logger.info("=" * 70)
 
     # Non-zero exit so Render flags the run as failed when any stage erred,

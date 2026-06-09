@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 
 from anthropic import Anthropic
 
 logger = logging.getLogger("journal_tracker")
 
-SONNET = "claude-sonnet-4-6"
+# Centralized model id. Override with QUERY_LLM_MODEL without touching code.
+QUERY_MODEL = os.getenv("QUERY_LLM_MODEL", "claude-sonnet-4-6")
 
 DB_SCHEMA = """
 Tables in the database:
@@ -163,9 +165,15 @@ class QueryAgent:
 
         for turn in range(self.max_turns):
             response = self.client.messages.create(
-                model=SONNET,
+                model=QUERY_MODEL,
                 max_tokens=4096,
-                system=SYSTEM_PROMPT,
+                # The system prompt + DB schema is large and static — cache it
+                # so repeated turns/queries reuse it instead of re-billing input.
+                system=[{
+                    "type": "text",
+                    "text": SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }],
                 tools=TOOLS,
                 messages=messages,
             )
