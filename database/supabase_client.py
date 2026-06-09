@@ -208,6 +208,11 @@ class SupabaseClient:
             "relevance_cvdl": relevance_cvdl,
             "llm_processed_at": datetime.now().isoformat(),
             "llm_model": llm_model,
+            # Invalidate any existing embedding so the embedding stage re-embeds
+            # this article with the freshly-written Chinese summary included
+            # (an article embedded before its summary was written would otherwise
+            # keep a stale, summary-less vector forever).
+            "embedding": None,
         }).eq("id", article_id).execute()
 
     # ---- embeddings (semantic search) ----

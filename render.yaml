@@ -54,7 +54,10 @@ services:
     buildCommand: |
       pip install --upgrade pip uv
       uv pip install --system -e .
-    startCommand: gunicorn agents.webhook:app --bind 0.0.0.0:$PORT --timeout 120 --preload
+    # --workers 1 is intentional: the webhook keeps rate-limit, conversation
+    # memory and the agent singleton in-process. Scaling to >1 worker would need
+    # a shared store (e.g. Redis) first.
+    startCommand: gunicorn agents.webhook:app --bind 0.0.0.0:$PORT --timeout 120 --preload --workers 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
