@@ -113,7 +113,13 @@ Return a JSON object with this exact structure:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=1024,
-            system=self.SYSTEM_PROMPT,
+            # The system prompt is identical for every article in a run (~50/day).
+            # Cache it so repeated calls reuse it instead of re-billing input.
+            system=[{
+                "type": "text",
+                "text": self.SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }],
             messages=[{"role": "user", "content": user_prompt}],
         )
         text_blocks = [b.text for b in response.content if hasattr(b, "text")]

@@ -120,6 +120,28 @@ class SupabaseClient:
             found.update(row["doi"] for row in response.data)
         return found
 
+    def existing_titles(self, journal_id: str, titles: list[str], chunk_size: int = 100) -> set[str]:
+        """Return the subset of `titles` already present for this journal.
+
+        Fallback dedup for articles that arrive without a usable DOI (some RSS
+        feeds), so they don't get re-inserted on every run.
+        """
+        clean = [t for t in titles if t]
+        if not clean:
+            return set()
+        found: set[str] = set()
+        for i in range(0, len(clean), chunk_size):
+            chunk = clean[i : i + chunk_size]
+            resp = (
+                self.client.table("articles")
+                .select("title")
+                .eq("journal_id", journal_id)
+                .in_("title", chunk)
+                .execute()
+            )
+            found.update(r["title"] for r in resp.data)
+        return found
+
     def insert_articles(self, articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not articles:
             return []
@@ -127,7 +149,7 @@ class SupabaseClient:
             {
                 "journal_id": a["journal_id"],
                 "title": a["title"],
-                "doi": a["doi"],
+                "doi": a.get("doi"),
                 "url": a["url"],
                 "published_date": a.get("published_date"),
                 "authors": a.get("authors"),
@@ -187,6 +209,32 @@ class SupabaseClient:
             "llm_processed_at": datetime.now().isoformat(),
             "llm_model": llm_model,
         }).eq("id", article_id).execute()
+
+    # ---- embeddings (semantic search) ----
+    def get_articles_without_embedding(self, limit: int) -> list[dict[str, Any]]:
+        """Articles that still need a vector embedding. Newest first."""
+        return (
+            self.client.table("articles")
+            .select("id, title, summary_zh, abstract")
+            .is_("embedding", "null")
+            .order("discovered_at", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+        )
+
+    def update_embedding(self, article_id: str, embedding: list[float]) -> None:
+        self.client.table("articles").update({"embedding": embedding}).eq(
+            "id", article_id
+        ).execute()
+
+    def match_articles(self, embedding: list[float], match_count: int = 10) -> list[dict[str, Any]]:
+        """Vector similarity search via the match_articles RPC."""
+        resp = self.client.rpc(
+            "match_articles",
+            {"query_embedding": embedding, "match_count": match_count},
+        ).execute()
+        return resp.data or []
 
     # ---- interests ----
     def get_active_interests(self) -> list[dict[str, Any]]:
