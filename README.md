@@ -1,7 +1,7 @@
 # MedFeed Journal Tracker
 
 [![CI](https://github.com/odafeng/MedFeedJournalTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/odafeng/MedFeedJournalTracker/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](.python-version)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](.python-version)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 <p align="center">
