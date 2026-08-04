@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">MedFeed social preview</title>
+  <desc id="desc">Automated medical literature monitoring with LLM filtering and daily notifications.</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071A2B"/><stop offset="1" stop-color="#11374A"/></linearGradient><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#5EEAD4" stroke-opacity="0.05"/></pattern><marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#2DD4BF"/></marker></defs>
+  <rect width="1280" height="640" rx="28" fill="url(#bg)"/><rect width="1280" height="640" rx="28" fill="url(#grid)"/>
+  <rect x="54" y="62" width="8" height="516" rx="4" fill="#2DD4BF"/>
+  <text x="88" y="94" fill="#5EEAD4" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="3">RESEARCH AUTOMATION · MEDICAL LITERATURE</text>
+  <text x="86" y="190" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="750">MedFeed</text>
+  <text x="88" y="252" fill="#C6D5DF" font-family="Arial, Helvetica, sans-serif" font-size="27">Journal ingestion, LLM filtering, and daily delivery</text>
+  <text x="88" y="298" fill="#8FB2C3" font-family="Arial, Helvetica, sans-serif" font-size="22">PubMed + RSS → Supabase → LINE / Telegram / Notion</text>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700">
+    <rect x="88" y="462" width="168" height="48" rx="24" fill="#123E50" stroke="#2DD4BF"/><text x="172" y="493" text-anchor="middle" fill="#E6FFFB">93 unit tests</text>
+    <rect x="272" y="462" width="180" height="48" rx="24" fill="#123E50" stroke="#2DD4BF"/><text x="362" y="493" text-anchor="middle" fill="#E6FFFB">Fault tolerant</text>
+    <rect x="468" y="462" width="176" height="48" rx="24" fill="#123E50" stroke="#2DD4BF"/><text x="556" y="493" text-anchor="middle" fill="#E6FFFB">Query agent</text>
+  </g>
+  <text x="88" y="566" fill="#6E93A7" font-family="Arial, Helvetica, sans-serif" font-size="18">Python · Supabase · Claude · odafeng/MedFeedJournalTracker</text>
+  <g transform="translate(740 145)" font-family="Arial, Helvetica, sans-serif">
+    <rect width="442" height="346" rx="28" fill="#0C2739" stroke="#2DD4BF" stroke-opacity="0.7"/>
+    <g font-size="16" font-weight="700" text-anchor="middle">
+      <rect x="30" y="42" width="105" height="64" rx="16" fill="#173E50"/><text x="82" y="70" fill="#E6FFFB">PubMed</text><text x="82" y="92" fill="#8FB2C3">RSS + APIs</text>
+      <line x1="142" y1="74" x2="194" y2="74" stroke="#2DD4BF" stroke-width="3" marker-end="url(#arrow)"/>
+      <rect x="206" y="34" width="112" height="80" rx="18" fill="#0F766E"/><text x="262" y="67" fill="#F0FDFA">LLM</text><text x="262" y="91" fill="#CCFBF1">score + digest</text>
+      <line x1="326" y1="74" x2="376" y2="74" stroke="#2DD4BF" stroke-width="3" marker-end="url(#arrow)"/>
+      <rect x="30" y="168" width="112" height="58" rx="16" fill="#173E50"/><text x="86" y="203" fill="#E6FFFB">LINE</text>
+      <rect x="166" y="168" width="112" height="58" rx="16" fill="#173E50"/><text x="222" y="203" fill="#E6FFFB">Telegram</text>
+      <rect x="302" y="168" width="112" height="58" rx="16" fill="#173E50"/><text x="358" y="203" fill="#E6FFFB">Notion</text>
+    </g>
+    <path d="M262 116V142H86V160M262 142H222V160M262 142H358V160" fill="none" stroke="#2DD4BF" stroke-width="3"/>
+    <rect x="30" y="264" width="384" height="50" rx="16" fill="#123E50"/>
+    <text x="222" y="296" text-anchor="middle" fill="#E6FFFB" font-size="18" font-weight="700">Daily pipeline + natural-language query agent</text>
+  </g>
+</svg>

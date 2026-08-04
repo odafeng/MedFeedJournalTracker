@@ -1,5 +1,24 @@
 # MedFeed Journal Tracker
 
+[![CI](https://github.com/odafeng/MedFeedJournalTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/odafeng/MedFeedJournalTracker/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](.python-version)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+<p align="center">
+  <img src=".github/social-preview.png" alt="MedFeed automated medical literature monitoring pipeline" width="100%" />
+</p>
+
+MedFeed is an automated literature-intelligence system for clinicians and researchers. It ingests new articles, de-duplicates them, applies budget-controlled LLM summarization and relevance scoring, and delivers daily updates through LINE and Telegram. A separate LINE Query Agent provides natural-language search over the literature database.
+
+| Capability | Implementation |
+| --- | --- |
+| **Ingestion** | PubMed API, RSS, IEEE, and Elsevier sources |
+| **Intelligence** | Claude summaries and relevance scoring; optional OpenAI embeddings |
+| **Delivery** | Multi-user LINE alerts, Telegram digest, and optional Notion archive |
+| **Reliability** | Decoupled stages, budget limits, failure alerts, unit tests, and GitHub Actions |
+
+## 中文技術文件
+
 > 每日醫學文獻追蹤系統,採用**雙通道推播**設計:
 > LINE 推播給多位訂閱者、Telegram 推播給單一使用者的 LLM 精選 digest。
 > 部署在 Render,每日上午 06:00(台北時間)透過 cron 自動執行。
