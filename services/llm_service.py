@@ -57,6 +57,24 @@ class LLMService:
             f"LLM done: {processed} processed, {failed} failed, "
             f"{len(unprocessed) - processed - failed} skipped"
         )
+
+        # Whole-stage failure guard.
+        # Per-article exceptions are swallowed above so one bad paper can't
+        # abort the batch. But if we *attempted* articles and every single one
+        # failed, that's not a bad paper — it's a systemic outage (expired
+        # ANTHROPIC_API_KEY, exhausted credits, deprecated LLM_MODEL, rate
+        # limiting). Left unraised it exits 0, so the run shows green while the
+        # Telegram digest (which only includes llm_processed_at IS NOT NULL
+        # rows) silently goes empty day after day. Raise so main.py flags the
+        # stage, sends the 🚨 alert, and exits non-zero.
+        if unprocessed and processed == 0 and failed > 0:
+            raise RuntimeError(
+                f"LLM stage failed on all {failed} attempted article(s), 0 processed. "
+                "Likely a systemic problem (API key / credits / model). "
+                "Check ANTHROPIC_API_KEY and LLM_MODEL — the digest will be empty "
+                "until this is fixed."
+            )
+
         return {"processed": processed, "skipped": max(0, len(unprocessed) - processed - failed), "failed": failed}
 
     def _process_one(self, article: dict[str, Any], interests: list[dict[str, Any]]) -> None:
