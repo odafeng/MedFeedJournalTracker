@@ -30,8 +30,8 @@ Tables in the database:
    - url, rss_url: TEXT
    - publisher_type: TEXT ('ieee', 'nature', 'elsevier', 'springer', 'wiley', 'pubmed', ...)
    - scraper_class: TEXT
-   - category: TEXT ('CRC' or 'SDS')
-   - is_active: BOOLEAN
+   - category: TEXT ('CRC', 'SDS', or 'AGENT')
+   - is_active: BOOLEAN (AGENT journals are is_active=false digest sources, not real journals)
 
 2. articles (main table, ~3000 rows)
    - id: UUID PK
@@ -41,8 +41,8 @@ Tables in the database:
    - url: TEXT
    - published_date: DATE
    - authors: TEXT
-   - abstract: TEXT (English abstract)
-   - category: TEXT ('CRC' or 'SDS')
+   - abstract: TEXT (English abstract; for AGENT rows this is the article full text)
+   - category: TEXT ('CRC', 'SDS', or 'AGENT')
    - summary_zh: TEXT (Traditional Chinese summary from LLM, nullable)
    - relevance_crc: INT (1-5 relevance score, nullable)
    - relevance_sds: INT (1-5 relevance score, nullable)
@@ -76,6 +76,14 @@ Tables in the database:
 
 Common joins:
   articles JOIN journals ON articles.journal_id = journals.id
+
+AGENT corpus (synced daily from the ai-digest pipeline):
+  - category='AGENT' rows are AI agent engineering news (Anthropic/Claude/MCP,
+    harness engineering, surgical AI, evals), NOT medical journal papers.
+  - doi is synthetic ('aidigest:<url>'), authors is null, journals.name is the
+    news source (e.g. 'Anthropic Blog', 'arxiv', 'HN').
+  - summary_zh is a Traditional Chinese digest write-up; abstract holds the
+    scraped full text when available.
 """
 
 SYSTEM_PROMPT = f"""你是一個醫學期刊資料庫助理。使用者會用自然語言提問，你需要查詢 PostgreSQL 資料庫來回答。
@@ -106,6 +114,12 @@ Rules:
     優先用 url 欄位；若 url 為空則用 https://doi.org/<doi>。SELECT 時記得一併取出 url 和 doi。
 12. 這是多輪對話。若使用者用「那篇」「第二篇」「它的結論」等指代，請根據前面對話脈絡理解，
     必要時沿用上一輪查到的文章再追加查詢。
+
+13. AGENT 列沒有 relevance 分數。分流：醫學/臨床/期刊問題查 category IN ('CRC','SDS')；
+    AI agent、Claude、MCP、LLM 工程、資安這類問題查 category='AGENT'。不確定就兩邊都查再合併。
+14. 「隨便挑一篇」「抽一篇講講」這類請求用 ORDER BY random() LIMIT 1。
+15. 要求摘要時：先用 summary_zh；需要更深入（或指定字數）時從 abstract 濃縮，
+    約一百字、繁體中文、只講發現與意義，不要逐段翻譯。
 
 工具選擇：
 - execute_sql：精確條件查詢（時間範圍、分數門檻、特定期刊、數量統計、列清單）用它。
